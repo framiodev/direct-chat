@@ -12,6 +12,7 @@ export default class ChatWidget extends Component {
         this.activeUser = null;
         this.messageText = '';
         this.pendingText = ''; // Dışarıdan gelen varsayılan mesaj (Örn: Post yönlendirme)
+        this.pendingEmbed = null; // Zengin önizleme verisi
         
         this.boundOpenChat = this.openChatWithUser.bind(this);
         window.openFramioChatWith = this.boundOpenChat;
@@ -20,6 +21,12 @@ export default class ChatWidget extends Component {
             this.messageText = text;
             this.isOpen = true;
             this.loadMessages(); // Listeyi getirmek için
+            m.redraw();
+        };
+        window.openFramioChatWithEmbed = (type, data) => {
+            this.pendingEmbed = { type, data };
+            this.isOpen = true;
+            this.loadMessages();
             m.redraw();
         };
     }
@@ -96,10 +103,21 @@ export default class ChatWidget extends Component {
     }
 
     sendMessage() {
-        if (!this.messageText.trim() || !this.activeUser) return;
+        if (!this.messageText.trim() && !this.pendingEmbed) return;
+        if (!this.activeUser) return;
         
-        const text = this.messageText;
+        let text = this.messageText;
+        let msgType = 'text';
         this.messageText = '';
+        
+        if (this.pendingEmbed) {
+            msgType = this.pendingEmbed.type; // 'post_embed'
+            text = JSON.stringify({
+                userText: text,
+                embed: this.pendingEmbed.data
+            });
+            this.pendingEmbed = null;
+        }
         
         app.request({
             method: 'POST',
@@ -108,7 +126,7 @@ export default class ChatWidget extends Component {
                 data: {
                     attributes: {
                         message_text: text,
-                        message_type: 'text',
+                        message_type: msgType,
                         receiver_id: this.activeUser.id()
                     }
                 }
@@ -185,6 +203,21 @@ export default class ChatWidget extends Component {
     // Gelecek aşamalar için Placeholder uyarı metodu
     triggerFeatureNotReady(featureName) {
         alert(`${featureName} özelliği Aşama 2 ve sonrasında aktif edilecek!`);
+    }
+
+    formatText(text) {
+        if (!text) return '';
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.split(urlRegex).map((part, i) => {
+            if (part.match(urlRegex)) {
+                return (
+                    <a href={part} target="_blank" rel="noopener noreferrer" style="color: #0084ff; text-decoration: underline;">
+                        {part}
+                    </a>
+                );
+            }
+            return part;
+        });
     }
 
     view() {
@@ -267,6 +300,30 @@ export default class ChatWidget extends Component {
                                                 const isMe = senderId === myId;
                                                 const type = msg.attributes.message_type || 'text';
                                                 
+                                                let content;
+                                                if (type === 'post_embed') {
+                                                    try {
+                                                        const parsed = JSON.parse(msg.attributes.message_text);
+                                                        content = (
+                                                            <div className="FramioDirectChat-EmbedWrapper">
+                                                                <div className="FramioDirectChat-EmbedCard" onclick={() => window.open(parsed.embed.url, '_blank')}>
+                                                                    <div className="EmbedCard-Header">
+                                                                        {parsed.embed.avatar ? <img src={parsed.embed.avatar}/> : <i className="fas fa-user-circle"/>}
+                                                                        <strong>{parsed.embed.author}</strong>
+                                                                    </div>
+                                                                    <div className="EmbedCard-Title">{parsed.embed.title}</div>
+                                                                    {parsed.embed.content && <div className="EmbedCard-Content">{parsed.embed.content}</div>}
+                                                                </div>
+                                                                {parsed.userText && <div className="EmbedCard-UserText">{this.formatText(parsed.userText)}</div>}
+                                                            </div>
+                                                        );
+                                                    } catch(e) {
+                                                        content = this.formatText(msg.attributes.message_text);
+                                                    }
+                                                } else {
+                                                    content = this.formatText(msg.attributes.message_text);
+                                                }
+                                                
                                                 return (
                                                     <div className={isMe ? 'FramioDirectChat-Message FramioDirectChat-Message--Sent' : 'FramioDirectChat-Message FramioDirectChat-Message--Received'}>
                                                         {type === 'image' && msg.attributes.attachment_url && (
@@ -274,13 +331,28 @@ export default class ChatWidget extends Component {
                                                                 <img src={msg.attributes.attachment_url} style="max-width: 100%; border-radius: 8px;" alt="Image" />
                                                             </div>
                                                         )}
-                                                        {msg.attributes.message_text}
+                                                        {type === 'file' && msg.attributes.attachment_url && (
+                                                            <div className="FramioDirectChat-File" style="margin-bottom: 5px;">
+                                                                <a href={msg.attributes.attachment_url} target="_blank" className="Button Button--primary" style="font-size: 11px;"><i className="fas fa-download"></i> İndir</a>
+                                                            </div>
+                                                        )}
+                                                        {content}
                                                     </div>
                                                 );
                                             })
                                         )}
                                     </div>
                                     
+                                    {this.pendingEmbed && (
+                                        <div className="FramioDirectChat-PendingPreview">
+                                            <div className="FramioDirectChat-EmbedCard">
+                                                <div className="EmbedCard-Title">{this.pendingEmbed.data.title}</div>
+                                                <div className="EmbedCard-Content">{this.pendingEmbed.data.content}</div>
+                                            </div>
+                                            <Button className="Button Button--icon Button--link CancelPreviewBtn" icon="fas fa-times" onclick={() => this.pendingEmbed = null} />
+                                        </div>
+                                    )}
+
                                     <div className="FramioDirectChat-ChatPane__Footer">
                                         <input type="file" id="FramioDirectChat-FileUpload" style="display:none;" onchange={(e) => this.uploadFile(e, 'file')} />
                                         <input type="file" id="FramioDirectChat-ImageUpload" style="display:none;" accept="image/*" onchange={(e) => this.uploadFile(e, 'image')} />

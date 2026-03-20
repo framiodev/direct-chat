@@ -258,6 +258,79 @@
     }
 }
 
+// Rich Post Embed Styles
+.FramioDirectChat-EmbedWrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.FramioDirectChat-EmbedCard {
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 5px;
+    border-left: 4px solid @chat-primary;
+    cursor: pointer;
+    transition: background 0.2s;
+    
+    &:hover { background: rgba(0, 0, 0, 0.08); }
+
+    .EmbedCard-Header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 6px;
+        
+        img { width: 20px; height: 20px; border-radius: 50%; margin-right: 6px; }
+        i { font-size: 20px; color: #888; margin-right: 6px; }
+        strong { font-size: 13px; color: #111b21; }
+    }
+
+    .EmbedCard-Title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #111b21;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .EmbedCard-Content {
+        font-size: 13px;
+        color: #54656f;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+}
+
+.EmbedCard-UserText {
+    font-size: 14.5px;
+    margin-top: 4px;
+}
+
+.FramioDirectChat-PendingPreview {
+    padding: 10px 15px;
+    background: #f0f2f5;
+    border-top: 1px solid @chat-border;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    .FramioDirectChat-EmbedCard {
+        flex: 1;
+        margin: 0 10px 0 0;
+        background: white;
+        cursor: default;
+    }
+
+    .CancelPreviewBtn {
+        color: #d1d7db;
+        &:hover { color: #8696a0; }
+    }
+}
+
 .FramioDirectChat-NoUserSelected {
     flex: 1;
     display: flex;

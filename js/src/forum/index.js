@@ -72,11 +72,20 @@ app.initializers.add('framiodev/direct-chat', () => {
                 title="DM olarak gönder"
                 onclick={() => {
                     const postUrl = app.forum.attribute('baseUrl') + '/d/' + post.discussion().id() + '/' + post.number();
-                    const text = `🚀 Şu gönderiye bir göz atmalısın:\n${postUrl}`;
-                    if (window.openFramioChatWithText) {
-                        window.openFramioChatWithText(text);
-                    } else if (window.openFramioChatWith) {
-                        window.openFramioChatWith(null, text);
+                    
+                    const snippet = post.contentPlain() ? post.contentPlain().substring(0, 100) + '...' : 'Gönderi önizlemesi';
+                    const embedData = {
+                        title: post.discussion().title(),
+                        content: snippet,
+                        url: postUrl,
+                        author: post.user() ? post.user().username() : 'Anonim',
+                        avatar: post.user() ? post.user().avatarUrl() : null
+                    };
+
+                    if (window.openFramioChatWithEmbed) {
+                        window.openFramioChatWithEmbed('post_embed', embedData);
+                    } else if (window.openFramioChatWithText) {
+                        window.openFramioChatWithText(postUrl);
                     }
                 }}
             >
