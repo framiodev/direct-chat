@@ -4,6 +4,7 @@ import UserPage from 'flarum/forum/components/UserPage';
 import Button from 'flarum/common/components/Button';
 import ChatWidget from './components/ChatWidget';
 import SessionDropdown from 'flarum/forum/components/SessionDropdown';
+import CommentPost from 'flarum/forum/components/CommentPost';
 
 app.initializers.add('framiodev/direct-chat', () => {
     // 1. Forumdan bağımsız bir kap (container) oluştur ve Body'ye ekle
@@ -57,5 +58,30 @@ app.initializers.add('framiodev/direct-chat', () => {
                 {app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform') || 'Mesajlarım'}
             </Button>
         ), 50); // Çıkış yap butonundan önce çıkması için 50 önceliği
+    });
+
+    // 4. Forum Gönderilerine (Post) "İlet/Uçur" butonu ekle
+    extend(CommentPost.prototype, 'actionItems', function (items) {
+        const post = this.attrs.post;
+        if (!app.session || !app.session.user) return;
+        
+        items.add('direct-message-share', (
+            <Button
+                className="Button Button--link"
+                icon="fas fa-paper-plane"
+                title="DM olarak gönder"
+                onclick={() => {
+                    const postUrl = app.forum.attribute('baseUrl') + '/d/' + post.discussion().id() + '/' + post.number();
+                    const text = `🚀 Şu gönderiye bir göz atmalısın:\n${postUrl}`;
+                    if (window.openFramioChatWithText) {
+                        window.openFramioChatWithText(text);
+                    } else if (window.openFramioChatWith) {
+                        window.openFramioChatWith(null, text);
+                    }
+                }}
+            >
+                Sohbete Gönder
+            </Button>
+        ), 50);
     });
 });

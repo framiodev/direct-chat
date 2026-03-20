@@ -11,13 +11,28 @@ export default class ChatWidget extends Component {
         this.conversations = []; // { user: User, lastMessage: string }
         this.activeUser = null;
         this.messageText = '';
+        this.pendingText = ''; // Dışarıdan gelen varsayılan mesaj (Örn: Post yönlendirme)
         
         this.boundOpenChat = this.openChatWithUser.bind(this);
         window.openFramioChatWith = this.boundOpenChat;
+        window.openFramioChatWithText = (text) => {
+            this.pendingText = text;
+            this.messageText = text;
+            this.isOpen = true;
+            this.loadMessages(); // Listeyi getirmek için
+            m.redraw();
+        };
     }
 
-    openChatWithUser(user) {
+    openChatWithUser(user, prefilledText = '') {
         this.activeUser = user;
+        if (prefilledText) {
+            this.messageText = prefilledText;
+        } else if (this.pendingText) {
+            this.messageText = this.pendingText;
+            this.pendingText = ''; // Kullanıldı, temizle
+        }
+        
         this.isOpen = true;
         this.loadMessages();
         m.redraw();
