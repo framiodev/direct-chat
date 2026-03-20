@@ -1,0 +1,31 @@
+{
+    "name": "framiodev/direct-chat",
+    "description": "Flarum için anlık mesajlaşma (Direct Chat) eklentisi.",
+    "type": "flarum-extension",
+    "keywords": ["flarum", "chat", "direct messages", "messaging"],
+    "license": "MIT",
+    "require": {
+        "flarum/core": "^1.8.0"
+    },
+    "authors": [
+        {
+            "name": "Framiodev"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Framiodev\\DirectChat\\": "src/"
+        }
+    },
+    "extra": {
+        "flarum-extension": {
+            "title": "Direct Chat",
+            "category": "feature",
+            "icon": {
+                "name": "fas fa-comments",
+                "backgroundColor": "#e74c3c",
+                "color": "#ffffff"
+            }
+        }
+    }
+}
