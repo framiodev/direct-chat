@@ -1,15 +1,19 @@
 import app from 'flarum/forum/app';
 import { extend } from 'flarum/common/extend';
 import m from 'flarum/common/mithril';
-import HeaderSecondary from 'flarum/forum/components/HeaderSecondary';
 import UserPage from 'flarum/forum/components/UserPage';
 import Button from 'flarum/common/components/Button';
 import ChatWidget from './components/ChatWidget';
 
 app.initializers.add('framiodev/direct-chat', () => {
-    // 1. Forum menüsünün en sağına (gizli bir şekilde) Chat Widget'ı iliştir
-    extend(HeaderSecondary.prototype, 'items', function (items) {
-        items.add('direct-chat', <ChatWidget />, -100);
+    // 1. Forumdan bağımsız bir kap (container) oluştur ve Body'ye ekle
+    extend(app, 'boot', () => {
+        const chatContainer = document.createElement('div');
+        chatContainer.id = 'framiodev-chat-root';
+        document.body.appendChild(chatContainer);
+
+        // ChatWidget'ı bu bağımsız kaba monte et
+        m.mount(chatContainer, ChatWidget);
     });
 
     // 2. Kullanıcı profiline 'Mesaj Gönder' butonu ekle
@@ -26,10 +30,12 @@ app.initializers.add('framiodev/direct-chat', () => {
                     if (chatFunc && typeof chatFunc === 'function') {
                         chatFunc(user);
                     } else {
-                        console.error('[DirectChat] Sohbet penceresi henüz hazır değil!');
-                        // Alternatif: Baloncuğa tıklat
-                        const bubble = document.querySelector('.FramioDirectChat-Wrapper .Button--primary');
-                        if (bubble) bubble.click();
+                        // Eğer mount henüz tamamlanmadıysa bir saniye bekle veya butonu ara
+                        const bubble = document.querySelector('.FramioDirectChat-Wrapper');
+                        if (bubble) {
+                            // Widget zaten orada, global fonksiyonu tekrar dene
+                            if (window.openFramioChatWith) window.openFramioChatWith(user);
+                        }
                     }
                 }}
             >
