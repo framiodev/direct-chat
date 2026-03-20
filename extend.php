@@ -24,4 +24,9 @@ return [
         
     // Dil dosyalarının nerede olduğunu belirtiyoruz
     new Extend\Locales(__DIR__.'/locale'),
+
+    // API Uç Noktaları (Gelen/Giden mesaj işlemleri)
+    (new Extend\Routes('api'))
+        ->get('/direct-messages', 'direct-messages.index', Api\Controller\ListDirectMessagesController::class)
+        ->post('/direct-messages', 'direct-messages.create', Api\Controller\CreateDirectMessageController::class),
 ];
