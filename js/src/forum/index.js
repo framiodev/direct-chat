@@ -3,6 +3,7 @@ import { extend } from 'flarum/common/extend';
 import UserPage from 'flarum/forum/components/UserPage';
 import Button from 'flarum/common/components/Button';
 import ChatWidget from './components/ChatWidget';
+import SessionDropdown from 'flarum/forum/components/SessionDropdown';
 
 app.initializers.add('framiodev/direct-chat', () => {
     // 1. Forumdan bağımsız bir kap (container) oluştur ve Body'ye ekle
@@ -39,5 +40,22 @@ app.initializers.add('framiodev/direct-chat', () => {
                 {app.translator.trans('framiodev-direct-chat.forum.user.message_button')}
             </Button>
         ), 100);
+    });
+
+    // 3. Kullanıcı menüsüne (Sağ üstteki dropdown) 'Mesajlarım' butonu ekle
+    extend(SessionDropdown.prototype, 'items', function (items) {
+        items.add('direct-messages', (
+            <Button
+                icon="fas fa-comment-dots"
+                onclick={() => {
+                    const chatFunc = window.openFramioChatWith;
+                    if (chatFunc && typeof chatFunc === 'function') {
+                        chatFunc(null); // null göndererek sadece sidebar'ı açarız
+                    }
+                }}
+            >
+                {app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform') || 'Mesajlarım'}
+            </Button>
+        ), 50); // Çıkış yap butonundan önce çıkması için 50 önceliği
     });
 });

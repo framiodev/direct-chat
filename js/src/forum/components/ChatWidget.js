@@ -123,7 +123,12 @@ export default class ChatWidget extends Component {
         const myId = (app.session && app.session.user) ? app.session.user.id() : null;
 
         return (
-            <div className={`FramioDirectChat-Wrapper ${this.isOpen ? 'open' : ''}`}>
+            <div className={`FramioDirectChat-Wrapper ${this.isOpen ? 'open' : ''}`} onclick={(e) => {
+                if (e.target.classList.contains('FramioDirectChat-Wrapper')) {
+                    this.isOpen = false;
+                    m.redraw();
+                }
+            }}>
                 {!this.isOpen && (
                     <Button 
                         className="Button Button--primary FramioDirectChat-Trigger" 
@@ -142,7 +147,7 @@ export default class ChatWidget extends Component {
                         <div className={`FramioDirectChat-Sidebar ${this.activeUser ? 'is-hidden-mobile' : ''}`}>
                             <div className="FramioDirectChat-Sidebar__Header">
                                 <h3>Sohbetler</h3>
-                                <Button className="Button Button--icon Button--link" icon="fas fa-times" aria-label="Kapat" onclick={() => { this.isOpen = false; this.activeUser = null; }} />
+                                <Button className="Button Button--icon Button--link" icon="fas fa-times" aria-label="Kapat" onclick={(e) => { e.stopPropagation(); this.isOpen = false; this.activeUser = null; m.redraw(); }} />
                             </div>
                             <div className="FramioDirectChat-Sidebar__List">
                                 {this.conversations.length === 0 && !this.isLoading && (
