@@ -13,12 +13,19 @@ Flarum forum siteleri için anlık, şık ve modern bir mesajlaşma (Direct Mess
 *   **Çoklu Dil Desteği:** Türkçe ve İngilizce dilleri tam uyumlu.
 *   **Güvenli Altyapı:** Sadece giriş yapmış kullanıcılar arasında mesajlaşma kontrolü.
 
-## 🛠️ Kurulum
+## 🛠️ Kurulum & Güncelleme
 
 Eklentiyi Composer aracılığıyla forumunuza dahil edebilirsiniz:
 
 ```bash
 composer require framiodev/direct-chat
+```
+
+Eklentiyi son sürüme güncellemek için:
+
+```bash
+composer update framiodev/direct-chat
+php flarum cache:clear
 ```
 
 Ardından forumunuzun yönetim panelinden (Admin Dashboard) eklentiyi aktif edin.
