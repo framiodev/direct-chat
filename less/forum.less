@@ -1,0 +1,51 @@
+// Framiodev Direct Chat - Özel Tasarım Kodları
+@chat-bg-color: #ffffff;
+@chat-header-color: #2c3e50;
+@chat-sender-color: #4CAF50;
+@chat-receiver-color: #ecf0f1;
+
+.FramioDirectChat-Modal {
+    position: fixed;
+    bottom: 20px;
+    right: 30px;
+    width: 320px;
+    height: 400px;
+    background-color: @chat-bg-color;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    z-index: 1050; // Z-index, Flarum header'ın üstünde kalması için gerekli
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    &__Header {
+        background-color: @chat-header-color;
+        color: white;
+        padding: 15px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    &__Body {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+    }
+
+    &__Footer {
+        padding: 10px;
+        background-color: white;
+        border-top: 1px solid #eee;
+
+        input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+    }
+}
