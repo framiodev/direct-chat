@@ -74,12 +74,22 @@ app.initializers.add('framiodev/direct-chat', () => {
                     const postUrl = app.forum.attribute('baseUrl') + '/d/' + post.discussion().id() + '/' + post.number();
                     
                     const snippet = post.contentPlain() ? post.contentPlain().substring(0, 100) + '...' : 'Gönderi önizlemesi';
+                    
+                    // Gönderide resim varsa yakala
+                    const html = post.contentHtml() || '';
+                    let imageUrl = null;
+                    const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+                    if (imgMatch && imgMatch[1] && !imgMatch[1].includes('emoji')) {
+                        imageUrl = imgMatch[1];
+                    }
+
                     const embedData = {
                         title: post.discussion().title(),
                         content: snippet,
                         url: postUrl,
                         author: post.user() ? post.user().username() : 'Anonim',
-                        avatar: post.user() ? post.user().avatarUrl() : null
+                        avatar: post.user() ? post.user().avatarUrl() : null,
+                        image: imageUrl
                     };
 
                     if (window.openFramioChatWithEmbed) {

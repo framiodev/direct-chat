@@ -75,16 +75,39 @@ export default class ChatWidget extends Component {
                     // Bizim dışımızdaki karşı taraf kullanıcısı
                     const otherId = senderId === myId ? receiverId : senderId;
                     
-                    if (!convos.has(otherId)) {
-                        let otherUser = app.store.getById('users', otherId);
-                        if (!otherUser && response.included) {
-                            const includedUser = response.included.find(inc => inc.type === 'users' && inc.id === otherId);
-                            if (includedUser) {
-                                otherUser = app.store.pushObject(includedUser);
-                            }
+                    let otherUser = app.store.getById('users', otherId);
+                    if (!otherUser && response.included) {
+                        const includedUser = response.included.find(inc => inc.type === 'users' && inc.id === otherId);
+                        if (includedUser) {
+                            otherUser = app.store.pushObject(includedUser);
                         }
-                        if (otherUser) {
-                            convos.set(otherId, { user: otherUser, lastMessage: msg.attributes.message_text });
+                    }
+
+                    if (otherUser) {
+                        let textParams = msg.attributes.message_text;
+                        if (msg.attributes.message_type === 'post_embed') {
+                            try {
+                                const p = JSON.parse(textParams);
+                                textParams = p.userText ? "Bağlantı: " + p.userText : "🚀 Bir gönderi paylaştı.";
+                            } catch(e) {
+                                textParams = "📎 Gönderi Paylaşımı";
+                            }
+                        } else if (msg.attributes.message_type === 'image') {
+                            textParams = "📷 Resim";
+                        } else if (msg.attributes.message_type === 'file') {
+                            textParams = "📁 Dosya";
+                        }
+                        
+                        const msgTime = new Date(msg.attributes.createdAt);
+                        const existing = convos.get(otherId);
+                        
+                        // En son/yeni mesaja göre sidebar'ı güncelle (en güncel message_text görünsün)
+                        if (!existing || msgTime > existing.lastTime) {
+                            convos.set(otherId, { 
+                                user: otherUser, 
+                                lastMessage: textParams,
+                                lastTime: msgTime
+                            });
                         }
                     }
                     
@@ -94,7 +117,8 @@ export default class ChatWidget extends Component {
                     }
                 });
                 
-                this.conversations = Array.from(convos.values());
+                // Sohbetleri son mesaj saatine göre sırala
+                this.conversations = Array.from(convos.values()).sort((a, b) => b.lastTime - a.lastTime);
             }
             this.isLoading = false;
             m.redraw();
@@ -311,7 +335,8 @@ export default class ChatWidget extends Component {
                                                                         {parsed.embed.avatar ? <img src={parsed.embed.avatar}/> : <i className="fas fa-user-circle"/>}
                                                                         <strong>{parsed.embed.author}</strong>
                                                                     </div>
-                                                                    <div className="EmbedCard-Title">{parsed.embed.title}</div>
+                                                                    {parsed.embed.title && <div className="EmbedCard-Title">{parsed.embed.title}</div>}
+                                                                    {parsed.embed.image && <div className="EmbedCard-Image" style="margin-bottom:6px;"><img src={parsed.embed.image} style="max-width:100%; border-radius:6px; max-height: 120px; object-fit: cover;" alt="Preview" /></div>}
                                                                     {parsed.embed.content && <div className="EmbedCard-Content">{parsed.embed.content}</div>}
                                                                 </div>
                                                                 {parsed.userText && <div className="EmbedCard-UserText">{this.formatText(parsed.userText)}</div>}
@@ -322,6 +347,11 @@ export default class ChatWidget extends Component {
                                                     }
                                                 } else {
                                                     content = this.formatText(msg.attributes.message_text);
+                                                }
+
+                                                let timeStr = "";
+                                                if (msg.attributes.createdAt) {
+                                                    timeStr = new Date(msg.attributes.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                                                 }
                                                 
                                                 return (
@@ -336,7 +366,11 @@ export default class ChatWidget extends Component {
                                                                 <a href={msg.attributes.attachment_url} target="_blank" className="Button Button--primary" style="font-size: 11px;"><i className="fas fa-download"></i> İndir</a>
                                                             </div>
                                                         )}
-                                                        {content}
+                                                        <div className="MessageContent">{content}</div>
+                                                        <div className="MessageTime" style="font-size: 10px; text-align: right; opacity: 0.7; margin-top: 3px; font-weight: 500;">
+                                                            {timeStr}
+                                                            {isMe && <i className="fas fa-check-double" style={`margin-left: 4px; ${msg.attributes.is_read ? 'color: #34b7f1;' : ''}`}></i>}
+                                                        </div>
                                                     </div>
                                                 );
                                             })
@@ -347,6 +381,7 @@ export default class ChatWidget extends Component {
                                         <div className="FramioDirectChat-PendingPreview">
                                             <div className="FramioDirectChat-EmbedCard">
                                                 <div className="EmbedCard-Title">{this.pendingEmbed.data.title}</div>
+                                                {this.pendingEmbed.data.image && <div className="EmbedCard-Image" style="margin-bottom:6px;"><img src={this.pendingEmbed.data.image} style="max-height: 80px; border-radius:6px; object-fit: cover;" alt="Preview" /></div>}
                                                 <div className="EmbedCard-Content">{this.pendingEmbed.data.content}</div>
                                             </div>
                                             <Button className="Button Button--icon Button--link CancelPreviewBtn" icon="fas fa-times" onclick={() => this.pendingEmbed = null} />
@@ -368,7 +403,7 @@ export default class ChatWidget extends Component {
                                             onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
                                         />
                                         
-                                        {this.messageText.trim() ? (
+                                        {(this.messageText.trim() || this.pendingEmbed) ? (
                                             <Button className="Button Button--primary SendBtn" icon="fas fa-paper-plane" aria-label="Gönder" onclick={this.sendMessage.bind(this)} />
                                         ) : (
                                             <Button className="Button Button--icon Button--link VoiceBtn" icon="fas fa-microphone" title="Ses Kaydı (Yakında)" aria-label="Ses Kaydı" onclick={() => this.triggerFeatureNotReady('Ses Kaydı')} />
