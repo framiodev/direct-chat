@@ -21,27 +21,20 @@ app.initializers.add('framiodev/direct-chat', () => {
         const user = this.user;
         if (!app.session.user || app.session.user === user) return;
 
-        items.add('direct-message', (
-            <Button
-                className="Button Button--primary"
-                icon="fas fa-paper-plane"
-                onclick={() => {
-                    const chatFunc = window.openFramioChatWith;
-                    if (chatFunc && typeof chatFunc === 'function') {
-                        chatFunc(user);
-                    } else {
-                        // Eğer mount henüz tamamlanmadıysa bir saniye bekle veya butonu ara
-                        const bubble = document.querySelector('.FramioDirectChat-Wrapper');
-                        if (bubble) {
-                            // Widget zaten orada, global fonksiyonu tekrar dene
-                            if (window.openFramioChatWith) window.openFramioChatWith(user);
-                        }
+        items.add('direct-message', m(Button, {
+            className: 'Button Button--primary',
+            icon: 'fas fa-paper-plane',
+            onclick: () => {
+                const chatFunc = window.openFramioChatWith;
+                if (chatFunc && typeof chatFunc === 'function') {
+                    chatFunc(user);
+                } else {
+                    const bubble = document.querySelector('.FramioDirectChat-Wrapper');
+                    if (bubble) {
+                        if (window.openFramioChatWith) window.openFramioChatWith(user);
                     }
-                }}
-            >
-                {app.translator.trans('framiodev-direct-chat.forum.user.message_button')}
-            </Button>
-        ), 100);
+                }
+            }
+        }, app.translator.trans('framiodev-direct-chat.forum.user.message_button')), 100);
     });
 });
-
