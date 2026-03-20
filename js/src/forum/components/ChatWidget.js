@@ -93,6 +93,7 @@ export default class ChatWidget extends Component {
                 data: {
                     attributes: {
                         message_text: text,
+                        message_type: 'text',
                         receiver_id: this.activeUser.id()
                     }
                 }
@@ -101,6 +102,32 @@ export default class ChatWidget extends Component {
             if (response && response.data) {
                 this.messages.push(response.data);
                 this.loadMessages(); // Konuşma listesinin de güncellenmesi için
+            }
+        });
+    }
+
+    sendMediaMessage(type, promptText) {
+        if (!this.activeUser) return;
+        const url = prompt(promptText);
+        if (!url) return;
+        
+        app.request({
+            method: 'POST',
+            url: app.forum.attribute('apiUrl') + '/direct-messages',
+            body: { 
+                data: {
+                    attributes: {
+                        message_text: type === 'image' ? '📷 Resim gönderildi' : 'Dosya gönderildi',
+                        message_type: type,
+                        attachment_url: url,
+                        receiver_id: this.activeUser.id()
+                    }
+                }
+            }
+        }).then(response => {
+            if (response && response.data) {
+                this.messages.push(response.data);
+                this.loadMessages();
             }
         });
     }
@@ -197,9 +224,15 @@ export default class ChatWidget extends Component {
                                             this.messages.map(msg => {
                                                 const senderId = msg.relationships.sender.data.id;
                                                 const isMe = senderId === myId;
+                                                const type = msg.attributes.message_type || 'text';
                                                 
                                                 return (
                                                     <div className={isMe ? 'FramioDirectChat-Message FramioDirectChat-Message--Sent' : 'FramioDirectChat-Message FramioDirectChat-Message--Received'}>
+                                                        {type === 'image' && msg.attributes.attachment_url && (
+                                                            <div className="FramioDirectChat-Media" style="margin-bottom: 5px;">
+                                                                <img src={msg.attributes.attachment_url} style="max-width: 100%; border-radius: 8px;" alt="Image" />
+                                                            </div>
+                                                        )}
                                                         {msg.attributes.message_text}
                                                     </div>
                                                 );
@@ -208,8 +241,8 @@ export default class ChatWidget extends Component {
                                     </div>
                                     
                                     <div className="FramioDirectChat-ChatPane__Footer">
-                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-paperclip" title="Dosya Ekle (Yakında)" aria-label="Dosya Ekle" onclick={() => this.triggerFeatureNotReady('Dosya Ekleme')} />
-                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-image" title="Resim Gönder (Yakında)" aria-label="Resim Gönder" onclick={() => this.triggerFeatureNotReady('Resim Gönderimi')} />
+                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-paperclip" title="Dosya Ekle (URL ile)" aria-label="Dosya Ekle" onclick={() => this.sendMediaMessage('file', 'Eklenecek dosyanın bağlantı (URL) adresini girin:')} />
+                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-image" title="Resim Gönder (URL ile)" aria-label="Resim Gönder" onclick={() => this.sendMediaMessage('image', 'Gönderilecek resmin bağlantı (URL) adresini girin (Örn: https://i.imgur.com/resim.jpg):')} />
                                         
                                         <input 
                                             type="text" 

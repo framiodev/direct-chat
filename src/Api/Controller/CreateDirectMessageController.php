@@ -38,7 +38,11 @@ class CreateDirectMessageController extends AbstractCreateController
         $message->receiver_id = Arr::get($data, 'attributes.receiver_id');
         
         // 4. Gönderilen mesaj metnini kaydet
-        $message->message_text = Arr::get($data, 'attributes.message_text');
+        $message->message_text = Arr::get($data, 'attributes.message_text', '');
+        
+        // 5. Medya türü ve eklenti (URL vb.) kaydet
+        $message->message_type = Arr::get($data, 'attributes.message_type', 'text');
+        $message->attachment_url = Arr::get($data, 'attributes.attachment_url', null);
         
         // Flarum standartlarına uygun bir eklentiyse, burada Validator (Boşluk kontrolü vs) olmalıdır. 
         // Şimdilik sadece kaydediyoruz:

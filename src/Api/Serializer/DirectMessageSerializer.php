@@ -19,9 +19,11 @@ class DirectMessageSerializer extends AbstractSerializer
     protected function getDefaultAttributes($message)
     {
         return [
-            'message_text' => $message->message_text,
-            'is_read'      => (bool) $message->is_read,
-            'createdAt'    => $this->formatDate($message->created_at),
+            'message_text'   => $message->message_text,
+            'message_type'   => $message->message_type ?? 'text',
+            'attachment_url' => $message->attachment_url,
+            'is_read'        => (bool) $message->is_read,
+            'createdAt'      => $this->formatDate($message->created_at),
         ];
     }
 
