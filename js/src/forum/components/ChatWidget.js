@@ -8,10 +8,10 @@ export default class ChatWidget extends Component {
         this.isOpen = false;
         this.isLoading = false;
         this.messages = [];
-        this.activeUser = null; // Aktif mesajlaşılan kullanıcı
+        this.conversations = []; // { user: User, lastMessage: string }
+        this.activeUser = null;
         this.messageText = '';
         
-        // Flarum'un her yerinden bu sohbet penceresinin hedeflenebilmesi için global bir tetikleyici.
         this.boundOpenChat = this.openChatWithUser.bind(this);
         window.openFramioChatWith = this.boundOpenChat;
     }
@@ -32,15 +32,47 @@ export default class ChatWidget extends Component {
             method: 'GET',
             url: app.forum.attribute('apiUrl') + '/direct-messages'
         }).then(response => {
-            const userId = this.activeUser ? this.activeUser.id() : null;
             if (response && response.data) {
-                // Burada API'den gelen mesajları inceler ve SADECE aktif sohbet ettiğimiz kişinin mesajlarını ayıklarız.
-                this.messages = response.data.filter(msg => {
-                    const senderId = msg.relationships.sender.data.id;
-                    const receiverId = msg.relationships.receiver.data.id;
-                    if (!userId) return true;
-                    return (senderId === userId || receiverId === userId);
+                const myId = app.session.user.id();
+                
+                // Geri dönen mesajlardan sohbet geçmişini (Sidebar) oluştur
+                const convos = new Map();
+                const rawMessages = response.data;
+                
+                this.messages = [];
+                
+                rawMessages.forEach(msg => {
+                    const senderData = msg.relationships && msg.relationships.sender ? msg.relationships.sender.data : null;
+                    const receiverData = msg.relationships && msg.relationships.receiver ? msg.relationships.receiver.data : null;
+                    
+                    if (!senderData || !receiverData) return;
+                    
+                    const senderId = senderData.id;
+                    const receiverId = receiverData.id;
+                    
+                    // Bizim dışımızdaki karşı taraf kullanıcısı
+                    const otherId = senderId === myId ? receiverId : senderId;
+                    
+                    if (!convos.has(otherId)) {
+                        let otherUser = app.store.getById('users', otherId);
+                        if (!otherUser && response.included) {
+                            const includedUser = response.included.find(inc => inc.type === 'users' && inc.id === otherId);
+                            if (includedUser) {
+                                otherUser = app.store.pushObject(includedUser);
+                            }
+                        }
+                        if (otherUser) {
+                            convos.set(otherId, { user: otherUser, lastMessage: msg.attributes.message_text });
+                        }
+                    }
+                    
+                    // Eğer aktif olarak bir kullanıcı seçiliyse ve mesaj onunla aramızdaysa listeye ekle
+                    if (this.activeUser && (senderId === this.activeUser.id() || receiverId === this.activeUser.id())) {
+                        this.messages.push(msg);
+                    }
                 });
+                
+                this.conversations = Array.from(convos.values());
             }
             this.isLoading = false;
             m.redraw();
@@ -68,86 +100,135 @@ export default class ChatWidget extends Component {
         }).then(response => {
             if (response && response.data) {
                 this.messages.push(response.data);
-                m.redraw();
-                this.scrollToBottom();
+                this.loadMessages(); // Konuşma listesinin de güncellenmesi için
             }
         });
     }
 
     scrollToBottom() {
         setTimeout(() => {
-            const body = document.querySelector('.FramioDirectChat-Modal__Body');
+            const body = document.querySelector('.FramioDirectChat-ChatPane__Body');
             if (body) {
                 body.scrollTop = body.scrollHeight;
             }
         }, 100);
     }
 
+    // Gelecek aşamalar için Placeholder uyarı metodu
+    triggerFeatureNotReady(featureName) {
+        alert(`${featureName} özelliği Aşama 2 ve sonrasında aktif edilecek!`);
+    }
+
     view() {
         const myId = (app.session && app.session.user) ? app.session.user.id() : null;
 
         return (
-            <div className="FramioDirectChat-Wrapper" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
-                <Button 
-                    className="Button Button--primary" 
-                    icon="fas fa-comments" 
-                    aria-label={app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform')}
-                    style="border-radius: 50%; width: 60px; height: 60px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
-                    onclick={() => {
-                        this.isOpen = !this.isOpen;
-                        if (this.isOpen && !this.activeUser) this.loadMessages();
-                    }}
-                >
-                </Button>
+            <div className={`FramioDirectChat-Wrapper ${this.isOpen ? 'open' : ''}`}>
+                {!this.isOpen && (
+                    <Button 
+                        className="Button Button--primary FramioDirectChat-Trigger" 
+                        icon="fas fa-comment-dots" 
+                        aria-label="Sohbeti Aç"
+                        onclick={() => {
+                            this.isOpen = true;
+                            this.loadMessages();
+                        }}
+                    />
+                )}
 
                 {this.isOpen && (
-                    <div className="FramioDirectChat-Modal" style="position: absolute; bottom: 80px; right: 0;">
-                        <div className="FramioDirectChat-Modal__Header">
-                            <span>
-                                {this.activeUser 
-                                    ? app.translator.trans('framiodev-direct-chat.forum.chat.with_user', {username: this.activeUser.username()}) 
-                                    : app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform')}
-                            </span>
-                            <Button className="Button Button--icon Button--link" style="color: white;" icon="fas fa-times" aria-label="Close" onclick={() => this.isOpen = false} />
-                        </div>
-                        
-                        <div className="FramioDirectChat-Modal__Body">
-                            {this.isLoading ? (
-                                <div style="padding: 20px; color: #666; text-align: center;">...</div>
-                            ) : this.messages.length === 0 ? (
-                                <div style="padding: 20px; color: #666; text-align: center;">
-                                    {app.translator.trans('framiodev-direct-chat.forum.chat.empty_state')}
-                                </div>
-                            ) : (
-                                this.messages.map(msg => {
-                                    const senderId = msg.relationships.sender.data.id;
-                                    const isMe = senderId === myId;
-                                    
-                                    return (
-                                        <div className={isMe ? 'FramioDirectChat-Message FramioDirectChat-Message--Sent' : 'FramioDirectChat-Message FramioDirectChat-Message--Received'}>
-                                            {msg.attributes.message_text}
+                    <div className="FramioDirectChat-AppTemplate">
+                        {/* Sol Panel: Konuşmalar Listesi */}
+                        <div className={`FramioDirectChat-Sidebar ${this.activeUser ? 'is-hidden-mobile' : ''}`}>
+                            <div className="FramioDirectChat-Sidebar__Header">
+                                <h3>Sohbetler</h3>
+                                <Button className="Button Button--icon Button--link" icon="fas fa-times" aria-label="Kapat" onclick={() => { this.isOpen = false; this.activeUser = null; }} />
+                            </div>
+                            <div className="FramioDirectChat-Sidebar__List">
+                                {this.conversations.length === 0 && !this.isLoading && (
+                                    <div className="FramioDirectChat-Empty">Henüz mesajınız yok.</div>
+                                )}
+                                {this.conversations.map(convo => (
+                                    <div 
+                                        className={`FramioDirectChat-Contact ${this.activeUser && this.activeUser.id() === convo.user.id() ? 'active' : ''}`}
+                                        onclick={() => this.openChatWithUser(convo.user)}
+                                    >
+                                        <div className="Avatar">
+                                            {convo.user.avatarUrl() ? <img src={convo.user.avatarUrl()} alt="Avatar"/> : <span className="Avatar-initials">{convo.user.username().charAt(0).toUpperCase()}</span>}
                                         </div>
-                                    );
-                                })
+                                        <div className="Info">
+                                            <strong>{convo.user.username()}</strong>
+                                            <span className="LastMessage">{convo.lastMessage || '...'}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Sağ Panel: Aktif Sohbet */}
+                        <div className={`FramioDirectChat-ChatPane ${this.activeUser ? 'is-active' : ''}`}>
+                            {this.activeUser ? (
+                                <>
+                                    <div className="FramioDirectChat-ChatPane__Header">
+                                        <div className="UserInfo">
+                                            <Button className="Button Button--icon Button--link BackBtn" icon="fas fa-arrow-left" aria-label="Geri" onclick={() => this.activeUser = null} />
+                                            <div className="Avatar">
+                                                {this.activeUser.avatarUrl() ? <img src={this.activeUser.avatarUrl()} alt="Avatar" /> : <span className="Avatar-initials">{this.activeUser.username().charAt(0).toUpperCase()}</span>}
+                                            </div>
+                                            <strong>{this.activeUser.username()}</strong>
+                                        </div>
+                                        <div className="ChatActions">
+                                            <Button className="Button Button--icon Button--link" icon="fas fa-phone" aria-label="Sesli Arama" onclick={() => this.triggerFeatureNotReady('Sesli Arama')} />
+                                            <Button className="Button Button--icon Button--link" icon="fas fa-video" aria-label="Görüntülü Arama" onclick={() => this.triggerFeatureNotReady('Görüntülü Arama')} />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="FramioDirectChat-ChatPane__Body">
+                                        {this.isLoading ? (
+                                            <div className="FramioDirectChat-Loading"><i className="fas fa-spinner fa-spin"></i> Yükleniyor...</div>
+                                        ) : this.messages.length === 0 ? (
+                                            <div className="FramioDirectChat-Empty">Burada hiç mesaj yok. İlk mesajı siz gönderin!</div>
+                                        ) : (
+                                            this.messages.map(msg => {
+                                                const senderId = msg.relationships.sender.data.id;
+                                                const isMe = senderId === myId;
+                                                
+                                                return (
+                                                    <div className={isMe ? 'FramioDirectChat-Message FramioDirectChat-Message--Sent' : 'FramioDirectChat-Message FramioDirectChat-Message--Received'}>
+                                                        {msg.attributes.message_text}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                    
+                                    <div className="FramioDirectChat-ChatPane__Footer">
+                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-paperclip" title="Dosya Ekle (Yakında)" aria-label="Dosya Ekle" onclick={() => this.triggerFeatureNotReady('Dosya Ekleme')} />
+                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-image" title="Resim Gönder (Yakında)" aria-label="Resim Gönder" onclick={() => this.triggerFeatureNotReady('Resim Gönderimi')} />
+                                        
+                                        <input 
+                                            type="text" 
+                                            placeholder="Bir mesaj yazın..."
+                                            value={this.messageText}
+                                            oninput={(e) => this.messageText = e.target.value}
+                                            onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
+                                        />
+                                        
+                                        {this.messageText.trim() ? (
+                                            <Button className="Button Button--primary SendBtn" icon="fas fa-paper-plane" aria-label="Gönder" onclick={this.sendMessage.bind(this)} />
+                                        ) : (
+                                            <Button className="Button Button--icon Button--link VoiceBtn" icon="fas fa-microphone" title="Ses Kaydı (Yakında)" aria-label="Ses Kaydı" onclick={() => this.triggerFeatureNotReady('Ses Kaydı')} />
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="FramioDirectChat-NoUserSelected">
+                                    <div className="PlaceholderIcon"><i className="fab fa-whatsapp"></i></div>
+                                    <h3>Framiodev Web Chat</h3>
+                                    <p>Mesajlaşmak için sol menüden bir konuşma seçin veya başka bir kullanıcının profiline giderek "Mesaj Gönder" butonuna tıklayarak yeni bir sohbet başlatın.</p>
+                                </div>
                             )}
                         </div>
-                        
-                        {this.activeUser ? (
-                            <div className="FramioDirectChat-Modal__Footer" style="display: flex; gap: 5px;">
-                                <input 
-                                    type="text" 
-                                    placeholder={app.translator.trans('framiodev-direct-chat.forum.chat.placeholder')}
-                                    value={this.messageText}
-                                    oninput={(e) => this.messageText = e.target.value}
-                                    onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
-                                />
-                                <Button className="Button Button--primary" aria-label="Send" icon="fas fa-paper-plane" onclick={this.sendMessage.bind(this)} />
-                            </div>
-                        ) : (
-                            <div className="FramioDirectChat-Modal__Footer" style="text-align: center; color: #888; font-size: 11px; padding: 15px;">
-                                {app.translator.trans('framiodev-direct-chat.forum.chat.guide')}
-                            </div>
-                        )}
                     </div>
                 )}
             </div>

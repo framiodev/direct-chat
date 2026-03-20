@@ -1,109 +1,310 @@
-// Framiodev Direct Chat - Premium Tasarım Kodları
-@chat-bg-color: #f7f9fb;
-@chat-header-color: #1a1a1a;
-@chat-sender-bg: #4CAF50;
-@chat-sender-text: #ffffff;
+// Framiodev Direct Chat - Premium WhatsApp Style UI
+@chat-bg: #ece5dd;
+@chat-panel-bg: #ffffff;
+@chat-sidebar-bg: #ffffff;
+@chat-header-bg: #f0f2f5;
+@chat-border: #d1d7db;
+@chat-sender-bg: #dcf8c6;
+@chat-sender-text: #111b21;
 @chat-receiver-bg: #ffffff;
-@chat-receiver-text: #333333;
+@chat-receiver-text: #111b21;
+@chat-active-contact: #f0f2f5;
+@chat-primary: #00a884;
 
-.FramioDirectChat-Modal {
+.FramioDirectChat-Wrapper {
     position: fixed;
-    bottom: 90px;
-    right: 20px;
+    z-index: 9999;
+    
+    // Bubble Trigger
+    .FramioDirectChat-Trigger {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        border-radius: 50%;
+        width: 65px;
+        height: 65px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        font-size: 24px;
+        background-color: @chat-primary;
+        color: white;
+        border: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: transform 0.2s;
+        
+        &:hover {
+            transform: scale(1.05);
+        }
+    }
+
+    &.open {
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255,255,255,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+    }
+}
+
+.FramioDirectChat-AppTemplate {
+    width: 1000px;
+    height: 650px;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: @chat-panel-bg;
+    border-radius: 12px;
+    box-shadow: 0 17px 50px 0 rgba(11,20,26,.19), 0 12px 15px 0 rgba(11,20,26,.24);
+    display: flex;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+// Sidebar
+.FramioDirectChat-Sidebar {
     width: 350px;
-    height: 500px;
-    background-color: @chat-bg-color;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    z-index: 1050;
+    min-width: 300px;
+    border-right: 1px solid @chat-border;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    border: 1px solid rgba(0,0,0,0.05);
-    transition: all 0.3s ease;
+    background: @chat-sidebar-bg;
 
     &__Header {
-        background-color: @chat-header-color;
-        color: white;
-        padding: 18px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+        height: 60px;
+        min-height: 60px;
+        background: @chat-header-bg;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid rgba(255,255,255,0.05);
+        justify-content: space-between;
+        padding: 0 15px;
+        border-bottom: 1px solid @chat-border;
+        
+        h3 { margin: 0; font-size: 16px; font-weight: 500; color: #111b21; }
+        .Button { color: #54656f; font-size: 18px; padding: 5px; }
+    }
 
-        .Button {
-            color: #ccc;
-            &:hover { color: white; }
+    &__List {
+        flex: 1;
+        overflow-y: auto;
+        
+        &::-webkit-scrollbar { width: 6px; }
+        &::-webkit-scrollbar-thumb { background: #ced0d1; border-radius: 10px; }
+    }
+}
+
+.FramioDirectChat-Contact {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f2f2f2;
+    transition: background 0.2s;
+
+    &:hover { background: #f5f6f6; }
+    &.active { background: @chat-active-contact; }
+
+    .Avatar {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 50%;
+        background: #ccc;
+        margin-right: 15px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 20px;
+        img { width: 100%; height: 100%; object-fit: cover; }
+    }
+
+    .Info {
+        flex: 1;
+        overflow: hidden;
+        strong { display: block; font-size: 16px; font-weight: normal; color: #111b21; margin-bottom: 4px; }
+        .LastMessage { display: block; font-size: 13px; color: #667781; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    }
+}
+
+// Chat Pane
+.FramioDirectChat-ChatPane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: @chat-bg;
+    position: relative;
+
+    // Background pattern
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: @chat-bg;
+        background-image: url('https://w0.peakpx.com/wallpaper/818/148/HD-wallpaper-whatsapp-background-cool-dark-green-new-theme-whatsapp.jpg');
+        background-size: cover;
+        opacity: 0.08;
+        z-index: 0;
+    }
+
+    &__Header {
+        height: 60px;
+        min-height: 60px;
+        background: @chat-header-bg;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 15px;
+        border-bottom: 1px solid @chat-border;
+        z-index: 1;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+        .UserInfo {
+            display: flex;
+            align-items: center;
+            .BackBtn { display: none; margin-right: 8px; color: #54656f; font-size: 18px; }
+            .Avatar {
+                width: 40px; height: 40px; border-radius: 50%; background: #ccc; margin-right: 12px; overflow: hidden;
+                display: flex; align-items: center; justify-content: center; color: white;
+                img { width: 100%; height: 100%; object-fit: cover; }
+            }
+            strong { font-size: 16px; font-weight: normal; color: #111b21; }
+        }
+
+        .ChatActions {
+            .Button { margin-left: 10px; color: #54656f; font-size: 18px; }
         }
     }
 
     &__Body {
         flex: 1;
-        padding: 15px;
+        padding: 20px;
         overflow-y: auto;
-        background-image: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)), url('https://www.transparenttextures.com/patterns/asfalt-light.png');
-        
-        &::-webkit-scrollbar { width: 5px; }
-        &::-webkit-scrollbar-thumb { background: #ddd; border-radius: 10px; }
-    }
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
 
-    &__Message {
-        margin-bottom: 12px;
-        max-width: 85%;
-        padding: 10px 14px;
-        border-radius: 18px;
-        font-size: 14px;
-        line-height: 1.4;
-        position: relative;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-
-        &--Sent {
-            align-self: flex-end;
-            background-color: @chat-sender-bg;
-            color: @chat-sender-text;
-            border-bottom-right-radius: 4px;
-            margin-left: auto;
-        }
-
-        &--Received {
-            align-self: flex-start;
-            background-color: @chat-receiver-bg;
-            color: @chat-receiver-text;
-            border-bottom-left-radius: 4px;
-            border: 1px solid #eee;
-        }
+        &::-webkit-scrollbar { width: 6px; }
+        &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
     }
 
     &__Footer {
-        padding: 15px;
-        background-color: white;
-        border-top: 1px solid #eee;
+        min-height: 62px;
+        background: @chat-header-bg;
         display: flex;
         align-items: center;
+        padding: 10px 15px;
+        z-index: 1;
         gap: 10px;
 
+        .Button.AttachBtn, .Button.VoiceBtn { color: #54656f; font-size: 20px; padding: 8px; }
+        
         input {
             flex: 1;
-            padding: 12px 18px;
-            border-radius: 25px;
-            border: 1px solid #e0e0e0;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid transparent;
             outline: none;
-            font-size: 14px;
-            transition: border 0.3s;
-
-            &:focus { border-color: @chat-sender-bg; }
+            font-size: 15px;
+            background: #ffffff;
+            color: #111b21;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+            
+            &::placeholder { color: #8696a0; }
+            &:focus { border-color: #d1d7db; }
         }
 
-        .Button--primary {
-            border-radius: 50%;
-            width: 42px;
-            height: 42px;
+        .SendBtn { 
+            background: @chat-primary; 
+            color: white; 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 16px; 
             padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            margin-left: 5px;
         }
+    }
+}
+
+.FramioDirectChat-Message {
+    max-width: 65%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14.5px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    position: relative;
+    box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+    word-wrap: break-word;
+
+    &--Sent {
+        align-self: flex-end;
+        background-color: @chat-sender-bg;
+        color: @chat-sender-text;
+        border-top-right-radius: 0;
+    }
+
+    &--Received {
+        align-self: flex-start;
+        background-color: @chat-receiver-bg;
+        color: @chat-receiver-text;
+        border-top-left-radius: 0;
+    }
+}
+
+.FramioDirectChat-NoUserSelected {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 1;
+    color: #41525d;
+    background: #f8f9fa;
+    border-left: 1px solid @chat-border;
+
+    .PlaceholderIcon {
+        font-size: 80px;
+        color: #d8dddf;
+        margin-bottom: 25px;
+    }
+    
+    h3 { font-size: 32px; font-weight: 300; margin: 0 0 15px 0; color: #41525d; }
+    p { font-size: 14px; max-width: 400px; line-height: 1.5; color: #8696a0; }
+}
+
+.FramioDirectChat-Empty {
+    text-align: center;
+    padding: 30px;
+    color: #8496a0;
+    font-size: 14px;
+}
+.FramioDirectChat-Loading {
+    text-align: center;
+    padding: 20px;
+    color: #54656f;
+}
+
+// Mobile responsiveness
+@media (max-width: 768px) {
+    .FramioDirectChat-AppTemplate {
+        width: 100%; height: 100%; border-radius: 0;
+        flex-direction: column;
+    }
+    .FramioDirectChat-Sidebar {
+        width: 100%; border-right: none;
+        &.is-hidden-mobile { display: none; }
+    }
+    .FramioDirectChat-ChatPane {
+        display: none;
+        &.is-active { display: flex; }
+        .UserInfo .BackBtn { display: block; }
     }
 }
