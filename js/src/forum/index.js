@@ -1,5 +1,6 @@
 import app from 'flarum/forum/app';
 import { extend } from 'flarum/common/extend';
+import m from 'flarum/common/mithril';
 import HeaderSecondary from 'flarum/forum/components/HeaderSecondary';
 import UserPage from 'flarum/forum/components/UserPage';
 import Button from 'flarum/common/components/Button';
