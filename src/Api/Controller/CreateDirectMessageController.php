@@ -48,6 +48,19 @@ class CreateDirectMessageController extends AbstractCreateController
         // Şimdilik sadece kaydediyoruz:
         $message->save();
 
+        // Gerçek Zamanlı (Realtime) Pusher websocket yayını fırlatalım
+        try {
+            if (class_exists(\Pusher\Pusher::class)) {
+                $pusher = resolve(\Pusher\Pusher::class);
+                $pusher->trigger('private-user' . $message->receiver_id, 'framiodev.direct-chat.new-message', [
+                    'messageId' => $message->id,
+                    'senderId' => $message->sender_id
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Eğer Pusher Flarum'da kurulu değilse hata yoksayılır
+        }
+
         // Başarılı bir şekilde model kaydedildi, frontend'e (JS) bu mesajı JSON olarak ver:
         return $message;
     }

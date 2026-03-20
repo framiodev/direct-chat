@@ -29,6 +29,28 @@ export default class ChatWidget extends Component {
             this.loadMessages();
             m.redraw();
         };
+
+        if (app.session && app.session.user) {
+            this.setupPusher();
+        }
+    }
+
+    setupPusher() {
+        setTimeout(() => {
+            if (!app.pusher) return;
+            
+            const myId = app.session.user.id();
+            const channelName = 'private-user' + myId;
+            
+            // Flarum kendi pusher kanalına bağlandığında biz de olay dinleyicisi ekleriz
+            const channel = app.pusher.channel(channelName) || app.pusher.subscribe(channelName);
+            
+            channel.bind('framiodev.direct-chat.new-message', (data) => {
+                // Yeni bir mesaj geldiğinde listeyi sessizce güncelle
+                this.loadMessages();
+                m.redraw();
+            });
+        }, 1500); // Flarum core'un pusher'ı bind etmesini beklemek için küçük bir gecikme
     }
 
     openChatWithUser(user, prefilledText = '') {
