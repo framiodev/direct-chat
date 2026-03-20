@@ -6,14 +6,12 @@ import ChatWidget from './components/ChatWidget';
 
 app.initializers.add('framiodev/direct-chat', () => {
     // 1. Forumdan bağımsız bir kap (container) oluştur ve Body'ye ekle
-    extend(app, 'boot', () => {
-        const chatContainer = document.createElement('div');
-        chatContainer.id = 'framiodev-chat-root';
-        document.body.appendChild(chatContainer);
+    const chatContainer = document.createElement('div');
+    chatContainer.id = 'framiodev-chat-root';
+    document.body.appendChild(chatContainer);
 
-        // ChatWidget'ı bu bağımsız kaba monte et
-        m.mount(chatContainer, { view: () => m(ChatWidget) });
-    });
+    // ChatWidget'ı bu bağımsız kaba monte et
+    m.mount(chatContainer, { view: () => m(ChatWidget) });
 
     // 2. Kullanıcı profiline 'Mesaj Gönder' butonu ekle
     extend(UserPage.prototype, 'sidebarItems', function (items) {
