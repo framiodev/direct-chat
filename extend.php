@@ -11,6 +11,7 @@ use Flarum\Extend;
 use Framiodev\DirectChat\Api\Controller\ListDirectMessagesController;
 use Framiodev\DirectChat\Api\Controller\CreateDirectMessageController;
 use Framiodev\DirectChat\Api\Controller\UploadDirectMessageAttachmentController;
+use Framiodev\DirectChat\Api\Controller\MarkDirectMessagesReadController;
 
 return [
     // Frontend assetleri
@@ -26,4 +27,5 @@ return [
         ->get('/direct-messages', 'direct-messages.index', ListDirectMessagesController::class)
         ->post('/direct-messages', 'direct-messages.create', CreateDirectMessageController::class)
         ->post('/direct-messages/upload', 'direct-messages.upload', UploadDirectMessageAttachmentController::class)
+        ->post('/direct-messages/read', 'direct-messages.read', MarkDirectMessagesReadController::class)
 ];

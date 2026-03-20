@@ -47,10 +47,48 @@ export default class ChatWidget extends Component {
             
             channel.bind('framiodev.direct-chat.new-message', (data) => {
                 // Yeni bir mesaj geldiğinde listeyi sessizce güncelle
-                this.loadMessages();
-                m.redraw();
+                this.loadMessages(); // Bu fonksiyon mesajı yüklüyor ve zaten read olayını eklentilerse tetikleyecek
+            });
+            
+            channel.bind('framiodev.direct-chat.messages-read', (data) => {
+                // Karşı taraf bizim mesajlarımızı okudu, ekrandaki tikleri mavi yap
+                if (data.readerId) {
+                    const readerIdStr = data.readerId.toString();
+                    let updated = false;
+                    this.messages.forEach(msg => {
+                        if (msg.relationships.receiver && msg.relationships.receiver.data.id === readerIdStr && !msg.attributes.is_read) {
+                            msg.attributes.is_read = 1;
+                            updated = true;
+                        }
+                    });
+                    if (updated) m.redraw();
+                }
             });
         }, 1500); // Flarum core'un pusher'ı bind etmesini beklemek için küçük bir gecikme
+    }
+
+    markConversationAsRead() {
+        if (!this.activeUser || !app.session || !app.session.user) return;
+        
+        const myId = app.session.user.id();
+        const hasUnread = this.messages.some(msg => msg.relationships.receiver && msg.relationships.receiver.data.id === myId && !msg.attributes.is_read);
+        
+        if (hasUnread) {
+            app.request({
+                method: 'POST',
+                url: app.forum.attribute('apiUrl') + '/direct-messages/read',
+                body: {
+                    data: { attributes: { sender_id: this.activeUser.id() } }
+                }
+            }).then(() => {
+                this.messages.forEach(msg => {
+                    if (msg.relationships.receiver && msg.relationships.receiver.data.id === myId) {
+                        msg.attributes.is_read = 1;
+                    }
+                });
+                m.redraw();
+            });
+        }
     }
 
     openChatWithUser(user, prefilledText = '') {
