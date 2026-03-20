@@ -106,30 +106,56 @@ export default class ChatWidget extends Component {
         });
     }
 
-    sendMediaMessage(type, promptText) {
+    uploadFile(event, type) {
         if (!this.activeUser) return;
-        const url = prompt(promptText);
-        if (!url) return;
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
         
+        this.isLoading = true;
+        m.redraw();
+
         app.request({
             method: 'POST',
-            url: app.forum.attribute('apiUrl') + '/direct-messages',
-            body: { 
-                data: {
-                    attributes: {
-                        message_text: type === 'image' ? '📷 Resim gönderildi' : 'Dosya gönderildi',
-                        message_type: type,
-                        attachment_url: url,
-                        receiver_id: this.activeUser.id()
-                    }
-                }
-            }
+            url: app.forum.attribute('apiUrl') + '/direct-messages/upload',
+            serialize: raw => raw,
+            body: formData
         }).then(response => {
-            if (response && response.data) {
-                this.messages.push(response.data);
-                this.loadMessages();
+            if (response && response.url) {
+                app.request({
+                    method: 'POST',
+                    url: app.forum.attribute('apiUrl') + '/direct-messages',
+                    body: { 
+                        data: {
+                            attributes: {
+                                message_text: type === 'image' ? '📷 Resim gönderildi' : '📁 Dosya gönderildi',
+                                message_type: type,
+                                attachment_url: app.forum.attribute('baseUrl') + response.url,
+                                receiver_id: this.activeUser.id()
+                            }
+                        }
+                    }
+                }).then(resp => {
+                    if (resp && resp.data) {
+                        this.messages.push(resp.data);
+                        this.loadMessages();
+                    }
+                });
+            } else {
+                this.isLoading = false;
+                alert('Dosya yüklenemedi!');
+                m.redraw();
             }
+        }).catch(e => {
+            this.isLoading = false;
+            alert('Yükleme hatası oluştu!');
+            m.redraw();
         });
+        
+        // Input'u sıfırla ki aynı dosyayı bir daha seçmek isterse çalışsın
+        event.target.value = '';
     }
 
     scrollToBottom() {
@@ -241,8 +267,11 @@ export default class ChatWidget extends Component {
                                     </div>
                                     
                                     <div className="FramioDirectChat-ChatPane__Footer">
-                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-paperclip" title="Dosya Ekle (URL ile)" aria-label="Dosya Ekle" onclick={() => this.sendMediaMessage('file', 'Eklenecek dosyanın bağlantı (URL) adresini girin:')} />
-                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-image" title="Resim Gönder (URL ile)" aria-label="Resim Gönder" onclick={() => this.sendMediaMessage('image', 'Gönderilecek resmin bağlantı (URL) adresini girin (Örn: https://i.imgur.com/resim.jpg):')} />
+                                        <input type="file" id="FramioDirectChat-FileUpload" style="display:none;" onchange={(e) => this.uploadFile(e, 'file')} />
+                                        <input type="file" id="FramioDirectChat-ImageUpload" style="display:none;" accept="image/*" onchange={(e) => this.uploadFile(e, 'image')} />
+                                        
+                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-paperclip" title="Dosya Ekle" aria-label="Dosya Ekle" onclick={() => document.getElementById('FramioDirectChat-FileUpload').click()} />
+                                        <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-image" title="Resim Gönder" aria-label="Resim Gönder" onclick={() => document.getElementById('FramioDirectChat-ImageUpload').click()} />
                                         
                                         <input 
                                             type="text" 
