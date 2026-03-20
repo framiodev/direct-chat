@@ -24,7 +24,7 @@ export default class ChatWidget extends Component {
     }
 
     loadMessages() {
-        if (!app.session.user) return;
+        if (!app.session || !app.session.user) return;
         this.isLoading = true;
         m.redraw();
         
@@ -84,7 +84,7 @@ export default class ChatWidget extends Component {
     }
 
     view() {
-        const myId = app.session.user ? app.session.user.id() : null;
+        const myId = (app.session && app.session.user) ? app.session.user.id() : null;
 
         return (
             <div className="FramioDirectChat-Wrapper" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">

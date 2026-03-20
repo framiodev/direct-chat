@@ -16,7 +16,7 @@ app.initializers.add('framiodev/direct-chat', () => {
     // 2. Kullanıcı profiline 'Mesaj Gönder' butonu ekle
     extend(UserPage.prototype, 'sidebarItems', function (items) {
         const user = this.user;
-        if (!app.session.user || app.session.user === user) return;
+        if (!app.session || !app.session.user || app.session.user === user) return;
 
         items.add('direct-message', (
             <Button
