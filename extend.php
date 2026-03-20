@@ -7,21 +7,21 @@
  * @license MIT
  */
 
-namespace Framiodev\DirectChat;
-
 use Flarum\Extend;
+use Framiodev\DirectChat\Api\Controller\ListDirectMessagesController;
+use Framiodev\DirectChat\Api\Controller\CreateDirectMessageController;
 
 return [
-    // Frontend (Kullanıcı Forumu) javascript ve css dosyalarını dahil ediyoruz
+    // Frontend assetleri
     (new Extend\Frontend('forum'))
         ->js(__DIR__.'/js/dist/forum.js')
         ->css(__DIR__.'/less/forum.less'),
         
-    // Dil dosyalarının nerede olduğunu belirtiyoruz
+    // Dil dosyaları
     new Extend\Locales(__DIR__.'/locale'),
 
-    // API Uç Noktaları (Gelen/Giden mesaj işlemleri)
+    // API Rotaları - Sınıf isimlerini açıkça belirtiyoruz
     (new Extend\Routes('api'))
-        ->get('/direct-messages', 'direct-messages.index', Api\Controller\ListDirectMessagesController::class)
-        ->post('/direct-messages', 'direct-messages.create', Api\Controller\CreateDirectMessageController::class),
+        ->get('/direct-messages', 'direct-messages.index', ListDirectMessagesController::class)
+        ->post('/direct-messages', 'direct-messages.create', CreateDirectMessageController::class)
 ];
