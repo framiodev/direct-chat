@@ -91,6 +91,7 @@ export default class ChatWidget extends Component {
                 <Button 
                     className="Button Button--primary" 
                     icon="fas fa-comments" 
+                    aria-label={app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform')}
                     style="border-radius: 50%; width: 60px; height: 60px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
                     onclick={() => {
                         this.isOpen = !this.isOpen;
@@ -107,7 +108,7 @@ export default class ChatWidget extends Component {
                                     ? app.translator.trans('framiodev-direct-chat.forum.chat.with_user', {username: this.activeUser.username()}) 
                                     : app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform')}
                             </span>
-                            <Button className="Button Button--icon Button--link" style="color: white;" icon="fas fa-times" onclick={() => this.isOpen = false} />
+                            <Button className="Button Button--icon Button--link" style="color: white;" icon="fas fa-times" aria-label="Close" onclick={() => this.isOpen = false} />
                         </div>
                         
                         <div className="FramioDirectChat-Modal__Body">
@@ -140,7 +141,7 @@ export default class ChatWidget extends Component {
                                     oninput={(e) => this.messageText = e.target.value}
                                     onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
                                 />
-                                <Button className="Button Button--primary" icon="fas fa-paper-plane" onclick={this.sendMessage.bind(this)} />
+                                <Button className="Button Button--primary" aria-label="Send" icon="fas fa-paper-plane" onclick={this.sendMessage.bind(this)} />
                             </div>
                         ) : (
                             <div className="FramioDirectChat-Modal__Footer" style="text-align: center; color: #888; font-size: 11px; padding: 15px;">

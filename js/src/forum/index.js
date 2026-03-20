@@ -11,7 +11,9 @@ app.initializers.add('framiodev/direct-chat', () => {
     document.body.appendChild(chatContainer);
 
     // ChatWidget'ı bu bağımsız kaba monte et
-    m.mount(chatContainer, { view: () => m(ChatWidget) });
+    setTimeout(() => {
+        m.mount(chatContainer, { view: () => m(ChatWidget) });
+    }, 0);
 
     // 2. Kullanıcı profiline 'Mesaj Gönder' butonu ekle
     extend(UserPage.prototype, 'sidebarItems', function (items) {
