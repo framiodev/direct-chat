@@ -1,7 +1,6 @@
 import Component from 'flarum/common/Component';
 import Button from 'flarum/common/components/Button';
 import app from 'flarum/forum/app';
-import m from 'flarum/common/mithril';
 
 export default class ChatWidget extends Component {
     oninit(vnode) {

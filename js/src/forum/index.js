@@ -1,6 +1,5 @@
 import app from 'flarum/forum/app';
 import { extend } from 'flarum/common/extend';
-import m from 'flarum/common/mithril';
 import UserPage from 'flarum/forum/components/UserPage';
 import Button from 'flarum/common/components/Button';
 import ChatWidget from './components/ChatWidget';
@@ -12,7 +11,7 @@ app.initializers.add('framiodev/direct-chat', () => {
         chatContainer.id = 'framiodev-chat-root';
         document.body.appendChild(chatContainer);
 
-        // ChatWidget'ı bu bağımsız kaba monte et (Sarmalayarak en güvenli yöntemle)
+        // ChatWidget'ı bu bağımsız kaba monte et
         m.mount(chatContainer, { view: () => m(ChatWidget) });
     });
 
@@ -21,20 +20,24 @@ app.initializers.add('framiodev/direct-chat', () => {
         const user = this.user;
         if (!app.session.user || app.session.user === user) return;
 
-        items.add('direct-message', m(Button, {
-            className: 'Button Button--primary',
-            icon: 'fas fa-paper-plane',
-            onclick: () => {
-                const chatFunc = window.openFramioChatWith;
-                if (chatFunc && typeof chatFunc === 'function') {
-                    chatFunc(user);
-                } else {
-                    const bubble = document.querySelector('.FramioDirectChat-Wrapper');
-                    if (bubble) {
-                        if (window.openFramioChatWith) window.openFramioChatWith(user);
+        items.add('direct-message', (
+            <Button
+                className="Button Button--primary"
+                icon="fas fa-paper-plane"
+                onclick={() => {
+                    const chatFunc = window.openFramioChatWith;
+                    if (chatFunc && typeof chatFunc === 'function') {
+                        chatFunc(user);
+                    } else {
+                        const bubble = document.querySelector('.FramioDirectChat-Wrapper');
+                        if (bubble) {
+                            if (window.openFramioChatWith) window.openFramioChatWith(user);
+                        }
                     }
-                }
-            }
-        }, app.translator.trans('framiodev-direct-chat.forum.user.message_button')), 100);
+                }}
+            >
+                {app.translator.trans('framiodev-direct-chat.forum.user.message_button')}
+            </Button>
+        ), 100);
     });
 });
