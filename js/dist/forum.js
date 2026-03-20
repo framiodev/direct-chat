@@ -1,0 +1,2 @@
+(()=>{var e={n:r=>{var o=r&&r.__esModule?()=>r.default:()=>r;return e.d(o,{a:o}),o},d:(r,o)=>{for(var a in o)e.o(o,a)&&!e.o(r,a)&&Object.defineProperty(r,a,{enumerable:!0,get:o[a]})},o:(e,r)=>Object.prototype.hasOwnProperty.call(e,r)};(()=>{"use strict";const r=flarum.core.compat["forum/app"];e.n(r)().initializers.add("framiodev/direct-chat",function(){console.log("[Framiodev Chat] Eklentinin Arayüzü (Frontend) başarıyla yüklendi!")})})(),module.exports={}})();
+//# sourceMappingURL=forum.js.map
