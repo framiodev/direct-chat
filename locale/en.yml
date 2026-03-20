@@ -1,0 +1,11 @@
+framiodev-direct-chat:
+  forum:
+    chat:
+      title: "Chats"
+      with_user: "Chat with {username}"
+      placeholder: "Type your message..."
+      empty_state: "No messages found. Start a chat!"
+      chat_platform: "Chat Platform"
+      guide: "To send a direct message, go to a user's profile and click the 'Message' button."
+    user:
+      message_button: "Message"

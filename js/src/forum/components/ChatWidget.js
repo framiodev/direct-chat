@@ -94,7 +94,7 @@ export default class ChatWidget extends Component {
                     style="border-radius: 50%; width: 60px; height: 60px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
                     onclick={() => {
                         this.isOpen = !this.isOpen;
-                        if (this.isOpen && !this.activeUser) this.loadMessages(); // Sadece baloncuğa basıldığında da mesajları yükle
+                        if (this.isOpen && !this.activeUser) this.loadMessages();
                     }}
                 >
                 </Button>
@@ -102,16 +102,20 @@ export default class ChatWidget extends Component {
                 {this.isOpen && (
                     <div className="FramioDirectChat-Modal" style="position: absolute; bottom: 80px; right: 0;">
                         <div className="FramioDirectChat-Modal__Header">
-                            <span>{this.activeUser ? this.activeUser.username() + ' ile Sohbet' : 'Genel Sohbet Platformu'}</span>
+                            <span>
+                                {this.activeUser 
+                                    ? app.translator.trans('framiodev-direct-chat.forum.chat.with_user', {username: this.activeUser.username()}) 
+                                    : app.translator.trans('framiodev-direct-chat.forum.chat.chat_platform')}
+                            </span>
                             <Button className="Button Button--icon Button--link" style="color: white;" icon="fas fa-times" onclick={() => this.isOpen = false} />
                         </div>
                         
                         <div className="FramioDirectChat-Modal__Body">
                             {this.isLoading ? (
-                                <div style="padding: 20px; color: #666; text-align: center;">Yükleniyor...</div>
+                                <div style="padding: 20px; color: #666; text-align: center;">...</div>
                             ) : this.messages.length === 0 ? (
                                 <div style="padding: 20px; color: #666; text-align: center;">
-                                    Mesaj bulunamadı. Sohbet başlatın!
+                                    {app.translator.trans('framiodev-direct-chat.forum.chat.empty_state')}
                                 </div>
                             ) : (
                                 this.messages.map(msg => {
@@ -119,22 +123,8 @@ export default class ChatWidget extends Component {
                                     const isMe = senderId === myId;
                                     
                                     return (
-                                        <div style={{
-                                            marginBottom: '10px',
-                                            textAlign: isMe ? 'right' : 'left'
-                                        }}>
-                                            <span style={{
-                                                display: 'inline-block',
-                                                padding: '8px 12px',
-                                                borderRadius: '15px',
-                                                backgroundColor: isMe ? '#4CAF50' : '#ecf0f1',
-                                                color: isMe ? 'white' : '#333',
-                                                maxWidth: '80%',
-                                                wordWrap: 'break-word',
-                                                textAlign: 'left'
-                                            }}>
-                                                {msg.attributes.message_text}
-                                            </span>
+                                        <div className={isMe ? 'FramioDirectChat-Message FramioDirectChat-Message--Sent' : 'FramioDirectChat-Message FramioDirectChat-Message--Received'}>
+                                            {msg.attributes.message_text}
                                         </div>
                                     );
                                 })
@@ -145,7 +135,7 @@ export default class ChatWidget extends Component {
                             <div className="FramioDirectChat-Modal__Footer" style="display: flex; gap: 5px;">
                                 <input 
                                     type="text" 
-                                    placeholder="Mesajınızı yazın..." 
+                                    placeholder={app.translator.trans('framiodev-direct-chat.forum.chat.placeholder')}
                                     value={this.messageText}
                                     oninput={(e) => this.messageText = e.target.value}
                                     onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
@@ -154,7 +144,7 @@ export default class ChatWidget extends Component {
                             </div>
                         ) : (
                             <div className="FramioDirectChat-Modal__Footer" style="text-align: center; color: #888; font-size: 11px; padding: 15px;">
-                                Özel mesaj göndermek için bir kullanıcının profiline gidip üst köşedeki "Mesaj Gönder" butonuna tıklayın.
+                                {app.translator.trans('framiodev-direct-chat.forum.chat.guide')}
                             </div>
                         )}
                     </div>

@@ -1,0 +1,11 @@
+framiodev-direct-chat:
+  forum:
+    chat:
+      title: "Sohbetler"
+      with_user: "{username} ile Sohbet"
+      placeholder: "Mesajınızı yazın..."
+      empty_state: "Mesaj bulunamadı. Sohbet başlatın!"
+      chat_platform: "Sohbet Platformu"
+      guide: "Özel mesaj göndermek için bir kullanıcının profiline gidip 'Mesaj Gönder' butonuna tıklayın."
+    user:
+      message_button: "Mesaj Gönder"
