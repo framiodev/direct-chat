@@ -382,14 +382,16 @@ export default class ChatWidget extends Component {
                                             <div className="Avatar">
                                                 {this.activeUser.avatarUrl() ? <img src={this.activeUser.avatarUrl()} alt="Avatar" /> : <span className="Avatar-initials">{this.activeUser.username().charAt(0).toUpperCase()}</span>}
                                             </div>
-                                            <div style="display: flex; flex-direction: column;">
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <strong>{this.activeUser.username()}</strong>
-                                                <span style="font-size: 11px; opacity: 0.8; font-weight: 500;">
+                                                <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: 500 }}>
                                                     {this.otherIsTyping 
                                                         ? 'yazıyor...' 
-                                                        : (this.activeUser.lastSeenAt && (new Date() - new Date(this.activeUser.lastSeenAt()) < 5 * 60 * 1000) 
-                                                            ? <span style="color:#00c853;">Çevrimiçi</span> 
-                                                            : 'Son görülme ' + (this.activeUser.lastSeenAt() ? new Date(this.activeUser.lastSeenAt()).toLocaleString([], {hour: '2-digit', minute:'2-digit', day: 'numeric', month: 'numeric'}) : 'kısa süre önce')
+                                                        : (this.activeUser.lastSeenAt && this.activeUser.lastSeenAt() 
+                                                            ? ((new Date() - new Date(this.activeUser.lastSeenAt()) < 5 * 60 * 1000) 
+                                                                ? <span style={{ color: '#00c853' }}>Çevrimiçi</span> 
+                                                                : 'Son görülme: ' + new Date(this.activeUser.lastSeenAt()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}))
+                                                            : ''
                                                         )
                                                     }
                                                 </span>

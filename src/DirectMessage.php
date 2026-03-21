@@ -10,6 +10,9 @@ class DirectMessage extends AbstractModel
     // Hangi veritabanı tablosunu kullanacağını belirtiyoruz
     protected $table = 'framiodev_direct_messages';
     
+    // AbstractModel'de timestamp kapalı gelir, açıyoruz ki DateTime verileri çalışşsın
+    public $timestamps = true;
+    
     // Tarihsel veriler
     protected $dates = ['created_at', 'updated_at'];
 
