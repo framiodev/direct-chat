@@ -50,7 +50,17 @@ class CreateDirectMessageController extends AbstractCreateController
 
         // Gerçek Zamanlı (Realtime) Pusher websocket yayını fırlatalım
         try {
-            if (class_exists(\Pusher\Pusher::class)) {
+            if (class_exists(\Framiodev\PusherHub\PusherHubManager::class)) {
+                \Framiodev\PusherHub\PusherHubManager::trigger(
+                    'private-user' . $message->receiver_id,
+                    'framiodev.direct-chat.new-message',
+                    [
+                        'messageId' => $message->id,
+                        'senderId' => $message->sender_id
+                    ],
+                    'messages'
+                );
+            } elseif (class_exists(\Pusher\Pusher::class)) {
                 $pusher = resolve(\Pusher\Pusher::class);
                 $pusher->trigger('private-user' . $message->receiver_id, 'framiodev.direct-chat.new-message', [
                     'messageId' => $message->id,

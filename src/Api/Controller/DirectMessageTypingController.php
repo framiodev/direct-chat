@@ -23,7 +23,16 @@ class DirectMessageTypingController implements RequestHandlerInterface
         }
 
         try {
-            if (class_exists(\Pusher\Pusher::class)) {
+            // framiodev/pusher-hub eklentisi kurulu ise sinyalleri onun üzerinden gönder (Yazışma odaklı dağıtıcı)
+            if (class_exists(\Framiodev\PusherHub\PusherHubManager::class)) {
+                \Framiodev\PusherHub\PusherHubManager::trigger(
+                    'private-user' . $receiverId,
+                    'framiodev.direct-chat.typing',
+                    ['userId' => $actor->id],
+                    'messages' // Özellikle 'messages' veya 'default' sunucusuna gitmeyi dener
+                );
+            } elseif (class_exists(\Pusher\Pusher::class)) {
+                // Fallback: Standart Flarum Pusher'ı kurulu ise
                 $pusher = resolve(\Pusher\Pusher::class);
                 $pusher->trigger('private-user' . $receiverId, 'framiodev.direct-chat.typing', [
                     'userId' => $actor->id
