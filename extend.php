@@ -13,6 +13,7 @@ use Framiodev\DirectChat\Api\Controller\CreateDirectMessageController;
 use Framiodev\DirectChat\Api\Controller\UploadDirectMessageAttachmentController;
 use Framiodev\DirectChat\Api\Controller\MarkDirectMessagesReadController;
 use Framiodev\DirectChat\Api\Controller\DirectMessageTypingController;
+use Framiodev\DirectChat\Api\Controller\DirectMessageCallController;
 
 return [
     // Frontend assetleri
@@ -30,4 +31,5 @@ return [
         ->post('/direct-messages/upload', 'direct-messages.upload', UploadDirectMessageAttachmentController::class)
         ->post('/direct-messages/read', 'direct-messages.read', MarkDirectMessagesReadController::class)
         ->post('/direct-messages/typing', 'direct-messages.typing', DirectMessageTypingController::class)
+        ->post('/direct-messages/call', 'direct-messages.call', DirectMessageCallController::class)
 ];

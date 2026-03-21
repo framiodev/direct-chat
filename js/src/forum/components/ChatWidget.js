@@ -17,6 +17,22 @@ export default class ChatWidget extends Component {
         this.typingTimer = null;
         this.otherIsTyping = false;
         this.otherTypingTimer = null;
+
+        // Voice Message State
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.recordingDuration = 0;
+        this.recordingTimer = null;
+
+        // Call State
+        this.activeCall = null; // { type: 'audio'|'video', status: 'offering'|'ringing'|'connected', stream: Stream, remoteStream: Stream, peer: RTCPeerConnection }
+        this.isIncomingCall = false;
+        this.incomingCallData = null;
+        this.localStream = null;
+        this.remoteStream = null;
+        this.peerConnection = null;
+        this.screenStream = null;
         
         this.boundOpenChat = this.openChatWithUser.bind(this);
         window.openFramioChatWith = this.boundOpenChat;
@@ -80,6 +96,10 @@ export default class ChatWidget extends Component {
                         m.redraw();
                     }, 2000);
                 }
+            });
+
+            channel.bind('framiodev.direct-chat.call-signal', (data) => {
+                this.handleCallSignal(data);
             });
         }, 1500); // Flarum core'un pusher'ı bind etmesini beklemek için küçük bir gecikme
     }
@@ -194,6 +214,13 @@ export default class ChatWidget extends Component {
                     }
                 });
                 
+                // Mesajları tarihe göre sırala (Eski üstte, Yeni altta)
+                this.messages.sort((a, b) => {
+                    const timeA = new Date(a.attributes.createdAt).getTime() || 0;
+                    const timeB = new Date(b.attributes.createdAt).getTime() || 0;
+                    return timeA - timeB;
+                });
+
                 // Sohbetleri son mesaj saatine göre sırala
                 this.conversations = Array.from(convos.values()).sort((a, b) => b.lastTime - a.lastTime);
             }
@@ -201,6 +228,255 @@ export default class ChatWidget extends Component {
             m.redraw();
             this.scrollToBottom();
         });
+    }
+
+    startRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Tarayıcınız ses kaydını desteklemiyor.");
+            return;
+        }
+
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            this.mediaRecorder = new MediaRecorder(stream);
+            this.audioChunks = [];
+            
+            this.mediaRecorder.ondataavailable = (e) => {
+                this.audioChunks.push(e.data);
+            };
+
+            this.mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(this.audioChunks, { type: 'audio/ogg; codecs=opus' });
+                this.uploadVoiceMessage(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            this.isRecording = true;
+            this.recordingDuration = 0;
+            this.mediaRecorder.start();
+            
+            this.recordingTimer = setInterval(() => {
+                this.recordingDuration++;
+                m.redraw();
+            }, 1000);
+            
+            m.redraw();
+        }).catch(err => {
+            console.error("Mikrofon erişim hatası:", err);
+            alert("Mikrofona erişilemedi.");
+        });
+    }
+
+    stopRecording(cancel = false) {
+        if (!this.mediaRecorder) return;
+        
+        clearInterval(this.recordingTimer);
+        this.isRecording = false;
+        
+        if (cancel) {
+            this.mediaRecorder.onstop = null;
+            this.mediaRecorder.stop();
+            this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        } else {
+            this.mediaRecorder.stop();
+        }
+        
+        m.redraw();
+    }
+
+    uploadVoiceMessage(blob) {
+        if (!this.activeUser) return;
+        
+        const formData = new FormData();
+        formData.append('file', blob, 'voice_message.ogg');
+        
+        this.isLoading = true;
+        m.redraw();
+
+        app.request({
+            method: 'POST',
+            url: app.forum.attribute('apiUrl') + '/direct-messages/upload',
+            serialize: raw => raw,
+            body: formData
+        }).then(response => {
+            if (response && response.url) {
+                app.request({
+                    method: 'POST',
+                    url: app.forum.attribute('apiUrl') + '/direct-messages',
+                    body: { 
+                        data: {
+                            attributes: {
+                                message_text: '🎤 Sesli mesaj',
+                                message_type: 'audio',
+                                attachment_url: app.forum.attribute('baseUrl') + response.url,
+                                receiver_id: this.activeUser.id()
+                            }
+                        }
+                    }
+                }).then(resp => {
+                    if (resp && resp.data) {
+                        this.messages.push(resp.data);
+                        this.loadMessages();
+                    }
+                });
+            }
+        }).catch(() => {
+            this.isLoading = false;
+            m.redraw();
+        });
+    }
+
+    // WebRTC Signaling Logic
+    initiateCall(callType) {
+        if (!this.activeUser) return;
+        
+        this.activeCall = { type: callType, status: 'offering' };
+        m.redraw();
+
+        const constraints = {
+            audio: true,
+            video: callType === 'video'
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+            this.localStream = stream;
+            this.setupPeerConnection();
+            
+            stream.getTracks().forEach(track => this.peerConnection.addTrack(track, stream));
+
+            this.peerConnection.createOffer().then(offer => {
+                this.peerConnection.setLocalDescription(offer);
+                this.sendCallSignal('offer', offer, callType);
+            });
+
+            m.redraw();
+        });
+    }
+
+    setupPeerConnection() {
+        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        this.peerConnection = new RTCPeerConnection(config);
+
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.sendCallSignal('candidate', event.candidate);
+            }
+        };
+
+        this.peerConnection.ontrack = (event) => {
+            this.remoteStream = event.streams[0];
+            this.activeCall.status = 'connected';
+            m.redraw();
+        };
+    }
+
+    handleCallSignal(data) {
+        if (data.type === 'offer') {
+            this.isIncomingCall = true;
+            this.incomingCallData = data;
+        } else if (data.type === 'answer' && this.peerConnection) {
+            this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal));
+            this.activeCall.status = 'connected';
+        } else if (data.type === 'candidate' && this.peerConnection) {
+            this.peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
+        } else if (data.type === 'hangup') {
+            this.endCall(false);
+        }
+        m.redraw();
+    }
+
+    acceptCall() {
+        this.isIncomingCall = false;
+        const callType = this.incomingCallData.callType;
+        this.activeCall = { type: callType, status: 'connected' };
+
+        navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' }).then(stream => {
+            this.localStream = stream;
+            this.setupPeerConnection();
+            
+            stream.getTracks().forEach(track => this.peerConnection.addTrack(track, stream));
+            this.peerConnection.setRemoteDescription(new RTCSessionDescription(this.incomingCallData.signal));
+            
+            this.peerConnection.createAnswer().then(answer => {
+                this.peerConnection.setLocalDescription(answer);
+                this.sendCallSignal('answer', answer);
+            });
+            
+            m.redraw();
+        });
+    }
+
+    rejectCall() {
+        this.sendCallSignal('hangup');
+        this.isIncomingCall = false;
+        this.incomingCallData = null;
+        m.redraw();
+    }
+
+    endCall(sendSignal = true) {
+        if (sendSignal && this.activeUser) {
+            this.sendCallSignal('hangup');
+        }
+
+        if (this.localStream) this.localStream.getTracks().forEach(t => t.stop());
+        if (this.peerConnection) this.peerConnection.close();
+        if (this.screenStream) this.screenStream.getTracks().forEach(t => t.stop());
+
+        this.activeCall = null;
+        this.localStream = null;
+        this.remoteStream = null;
+        this.peerConnection = null;
+        this.isIncomingCall = false;
+        this.screenStream = null;
+        m.redraw();
+    }
+
+    sendCallSignal(type, signal = null, callType = 'video') {
+        app.request({
+            method: 'POST',
+            url: app.forum.attribute('apiUrl') + '/direct-messages/call',
+            body: {
+                data: {
+                    attributes: {
+                        receiver_id: type === 'offer' ? this.activeUser.id() : (this.incomingCallData ? this.incomingCallData.senderId : this.activeUser.id()),
+                        type: type,
+                        signal: signal,
+                        call_type: callType
+                    }
+                }
+            }
+        });
+    }
+
+    startScreenShare() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return;
+
+        navigator.mediaDevices.getDisplayMedia({ video: true }).then(stream => {
+            this.screenStream = stream;
+            const videoTrack = stream.getVideoTracks()[0];
+            const sender = this.peerConnection.getSenders().find(s => s.track.kind === 'video');
+            
+            if (sender) {
+                sender.replaceTrack(videoTrack);
+            }
+
+            videoTrack.onended = () => {
+                this.stopScreenShare();
+            };
+            m.redraw();
+        });
+    }
+
+    stopScreenShare() {
+        if (!this.screenStream) return;
+        this.screenStream.getTracks().forEach(t => t.stop());
+        this.screenStream = null;
+
+        const videoTrack = this.localStream.getVideoTracks()[0];
+        const sender = this.peerConnection.getSenders().find(s => s.track.kind === 'video');
+        if (sender) {
+            sender.replaceTrack(videoTrack);
+        }
+        m.redraw();
     }
 
     sendMessage() {
@@ -398,8 +674,8 @@ export default class ChatWidget extends Component {
                                             </div>
                                         </div>
                                         <div className="ChatActions">
-                                            <Button className="Button Button--icon Button--link" icon="fas fa-phone" aria-label="Sesli Arama" onclick={() => this.triggerFeatureNotReady('Sesli Arama')} />
-                                            <Button className="Button Button--icon Button--link" icon="fas fa-video" aria-label="Görüntülü Arama" onclick={() => this.triggerFeatureNotReady('Görüntülü Arama')} />
+                                            <Button className="Button Button--icon Button--link" icon="fas fa-phone" aria-label="Sesli Arama" onclick={() => this.initiateCall('audio')} />
+                                            <Button className="Button Button--icon Button--link" icon="fas fa-video" aria-label="Görüntülü Arama" onclick={() => this.initiateCall('video')} />
                                         </div>
                                     </div>
                                     
@@ -456,6 +732,11 @@ export default class ChatWidget extends Component {
                                                                 <a href={msg.attributes.attachment_url} target="_blank" className="Button Button--primary" style="font-size: 11px;"><i className="fas fa-download"></i> İndir</a>
                                                             </div>
                                                         )}
+                                                        {type === 'audio' && msg.attributes.attachment_url && (
+                                                            <div className="FramioDirectChat-Audio" style="margin-bottom: 5px;">
+                                                                <audio src={msg.attributes.attachment_url} controls style="max-width: 220px; height: 35px;" />
+                                                            </div>
+                                                        )}
                                                         <div className="MessageContent">{content}</div>
                                                         <div className="MessageTime" style={{ fontSize: '10px', textAlign: 'right', opacity: 0.8, marginTop: '3px', fontWeight: 600 }}>
                                                             {timeStr}
@@ -485,30 +766,41 @@ export default class ChatWidget extends Component {
                                         <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-paperclip" title="Dosya Ekle" aria-label="Dosya Ekle" onclick={() => document.getElementById('FramioDirectChat-FileUpload').click()} />
                                         <Button className="Button Button--icon Button--link AttachBtn" icon="fas fa-image" title="Resim Gönder" aria-label="Resim Gönder" onclick={() => document.getElementById('FramioDirectChat-ImageUpload').click()} />
                                         
-                                        <input 
-                                            type="text" 
-                                            placeholder="Bir mesaj yazın..."
-                                            value={this.messageText}
-                                            oninput={(e) => {
-                                                this.messageText = e.target.value;
-                                                clearTimeout(this.typingTimer);
-                                                if (!this.isTyping && this.activeUser) {
-                                                    this.isTyping = true;
-                                                    app.request({
-                                                        method: 'POST',
-                                                        url: app.forum.attribute('apiUrl') + '/direct-messages/typing',
-                                                        body: { data: { attributes: { receiver_id: this.activeUser.id() } } }
-                                                    }).catch(() => {});
-                                                }
-                                                this.typingTimer = setTimeout(() => { this.isTyping = false; }, 2000);
-                                            }}
-                                            onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
-                                        />
-                                        
-                                        {(this.messageText.trim() || this.pendingEmbed) ? (
-                                            <Button className="Button Button--primary SendBtn" icon="fas fa-paper-plane" aria-label="Gönder" onclick={this.sendMessage.bind(this)} />
+                                        {this.isRecording ? (
+                                            <div className="FramioDirectChat-VoiceRecorder">
+                                                <div className="RecordingPulse"></div>
+                                                <div className="Timer">{Math.floor(this.recordingDuration / 60)}:{(this.recordingDuration % 60).toString().padStart(2, '0')}</div>
+                                                <Button className="Button Button--link CancelBtn" icon="fas fa-trash" onclick={() => this.stopRecording(true)} />
+                                                <Button className="Button Button--primary SendBtn" icon="fas fa-paper-plane" onclick={() => this.stopRecording(false)} />
+                                            </div>
                                         ) : (
-                                            <Button className="Button Button--icon Button--link VoiceBtn" icon="fas fa-microphone" title="Ses Kaydı (Yakında)" aria-label="Ses Kaydı" onclick={() => this.triggerFeatureNotReady('Ses Kaydı')} />
+                                            <>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Bir mesaj yazın..."
+                                                    value={this.messageText}
+                                                    oninput={(e) => {
+                                                        this.messageText = e.target.value;
+                                                        clearTimeout(this.typingTimer);
+                                                        if (!this.isTyping && this.activeUser) {
+                                                            this.isTyping = true;
+                                                            app.request({
+                                                                method: 'POST',
+                                                                url: app.forum.attribute('apiUrl') + '/direct-messages/typing',
+                                                                body: { data: { attributes: { receiver_id: this.activeUser.id() } } }
+                                                            }).catch(() => {});
+                                                        }
+                                                        this.typingTimer = setTimeout(() => { this.isTyping = false; }, 2000);
+                                                    }}
+                                                    onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
+                                                />
+                                                
+                                                {(this.messageText.trim() || this.pendingEmbed) ? (
+                                                    <Button className="Button Button--primary SendBtn" icon="fas fa-paper-plane" aria-label="Gönder" onclick={this.sendMessage.bind(this)} />
+                                                ) : (
+                                                    <Button className="Button Button--icon Button--link VoiceBtn" icon="fas fa-microphone" title="Ses Kaydı" aria-label="Ses Kaydı" onclick={() => this.startRecording()} />
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 </>
@@ -520,6 +812,50 @@ export default class ChatWidget extends Component {
                                 </div>
                             )}
                         </div>
+
+                        {/* Call Overlay */}
+                        {this.isIncomingCall && (
+                            <div className="FramioDirectChat-CallOverlay">
+                                <div className="CallerInfo">
+                                    <div className="Avatar">
+                                        {this.incomingCallData.senderAvatar ? <img src={this.incomingCallData.senderAvatar} /> : <i className="fas fa-user-circle" />}
+                                    </div>
+                                    <h2>{this.incomingCallData.senderName} Arıyor...</h2>
+                                    <p>{this.incomingCallData.callType === 'video' ? 'Görüntülü Arama' : 'Sesli Arama'}</p>
+                                </div>
+                                <div className="CallActions">
+                                    <Button className="Button Reject" icon="fas fa-phone-slash" onclick={() => this.rejectCall()} />
+                                    <Button className="Button Accept" icon="fas fa-phone" onclick={() => this.acceptCall()} />
+                                </div>
+                            </div>
+                        )}
+
+                        {this.activeCall && (
+                            <div className="FramioDirectChat-CallOverlay">
+                                <div className="VideoContainer">
+                                    {this.activeCall.status === 'connected' && this.remoteStream ? (
+                                        <video oncreate={(vnode) => vnode.dom.srcObject = this.remoteStream} autoplay />
+                                    ) : (
+                                        <div className="CallerInfo">
+                                            <div className="Avatar">
+                                                {this.activeUser.avatarUrl() ? <img src={this.activeUser.avatarUrl()} /> : <i className="fas fa-user-circle" />}
+                                            </div>
+                                            <h2>{this.activeUser.username()}</h2>
+                                            <p>Aranıyor...</p>
+                                        </div>
+                                    )}
+                                    {this.localStream && (
+                                        <video className="LocalVideo" oncreate={(vnode) => vnode.dom.srcObject = this.localStream} autoplay muted />
+                                    )}
+                                </div>
+                                <div className="CallActions">
+                                    {this.activeCall.type === 'video' && (
+                                        <Button className={`Button Control ${this.screenStream ? 'ScreenShare' : ''}`} icon="fas fa-desktop" onclick={() => this.screenStream ? this.stopScreenShare() : this.startScreenShare()} />
+                                    )}
+                                    <Button className="Button Reject Hangup" icon="fas fa-phone-slash" onclick={() => this.endCall()} />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
