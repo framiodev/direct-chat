@@ -13,6 +13,10 @@ export default class ChatWidget extends Component {
         this.messageText = '';
         this.pendingText = ''; // Dışarıdan gelen varsayılan mesaj (Örn: Post yönlendirme)
         this.pendingEmbed = null; // Zengin önizleme verisi
+        this.isTyping = false;
+        this.typingTimer = null;
+        this.otherIsTyping = false;
+        this.otherTypingTimer = null;
         
         this.boundOpenChat = this.openChatWithUser.bind(this);
         window.openFramioChatWith = this.boundOpenChat;
@@ -62,6 +66,19 @@ export default class ChatWidget extends Component {
                         }
                     });
                     if (updated) m.redraw();
+                }
+            });
+            
+            channel.bind('framiodev.direct-chat.typing', (data) => {
+                if (data.userId && this.activeUser && this.activeUser.id() === data.userId.toString()) {
+                    this.otherIsTyping = true;
+                    m.redraw();
+                    
+                    clearTimeout(this.otherTypingTimer);
+                    this.otherTypingTimer = setTimeout(() => {
+                        this.otherIsTyping = false;
+                        m.redraw();
+                    }, 2000);
                 }
             });
         }, 1500); // Flarum core'un pusher'ı bind etmesini beklemek için küçük bir gecikme
@@ -158,11 +175,11 @@ export default class ChatWidget extends Component {
                             textParams = "📁 Dosya";
                         }
                         
-                        const msgTime = new Date(msg.attributes.createdAt);
+                        const msgTime = new Date(msg.attributes.createdAt).getTime() || 0;
                         const existing = convos.get(otherId);
                         
                         // En son/yeni mesaja göre sidebar'ı güncelle (en güncel message_text görünsün)
-                        if (!existing || msgTime > existing.lastTime) {
+                        if (!existing || msgTime >= existing.lastTime) {
                             convos.set(otherId, { 
                                 user: otherUser, 
                                 lastMessage: textParams,
@@ -365,7 +382,18 @@ export default class ChatWidget extends Component {
                                             <div className="Avatar">
                                                 {this.activeUser.avatarUrl() ? <img src={this.activeUser.avatarUrl()} alt="Avatar" /> : <span className="Avatar-initials">{this.activeUser.username().charAt(0).toUpperCase()}</span>}
                                             </div>
-                                            <strong>{this.activeUser.username()}</strong>
+                                            <div style="display: flex; flex-direction: column;">
+                                                <strong>{this.activeUser.username()}</strong>
+                                                <span style="font-size: 11px; opacity: 0.8; font-weight: 500;">
+                                                    {this.otherIsTyping 
+                                                        ? 'yazıyor...' 
+                                                        : (this.activeUser.lastSeenAt && (new Date() - new Date(this.activeUser.lastSeenAt()) < 5 * 60 * 1000) 
+                                                            ? <span style="color:#00c853;">Çevrimiçi</span> 
+                                                            : 'Son görülme ' + (this.activeUser.lastSeenAt() ? new Date(this.activeUser.lastSeenAt()).toLocaleString([], {hour: '2-digit', minute:'2-digit', day: 'numeric', month: 'numeric'}) : 'kısa süre önce')
+                                                        )
+                                                    }
+                                                </span>
+                                            </div>
                                         </div>
                                         <div className="ChatActions">
                                             <Button className="Button Button--icon Button--link" icon="fas fa-phone" aria-label="Sesli Arama" onclick={() => this.triggerFeatureNotReady('Sesli Arama')} />
@@ -427,9 +455,9 @@ export default class ChatWidget extends Component {
                                                             </div>
                                                         )}
                                                         <div className="MessageContent">{content}</div>
-                                                        <div className="MessageTime" style="font-size: 10px; text-align: right; opacity: 0.7; margin-top: 3px; font-weight: 500;">
+                                                        <div className="MessageTime" style={{ fontSize: '10px', textAlign: 'right', opacity: 0.8, marginTop: '3px', fontWeight: 600 }}>
                                                             {timeStr}
-                                                            {isMe && <i className="fas fa-check-double" style={`margin-left: 4px; ${msg.attributes.is_read ? 'color: #34b7f1;' : ''}`}></i>}
+                                                            {isMe && <i className="fas fa-check-double" style={{ marginLeft: '5px', color: msg.attributes.is_read ? '#34b7f1' : '#b2b2b2' }}></i>}
                                                         </div>
                                                     </div>
                                                 );
@@ -459,7 +487,19 @@ export default class ChatWidget extends Component {
                                             type="text" 
                                             placeholder="Bir mesaj yazın..."
                                             value={this.messageText}
-                                            oninput={(e) => this.messageText = e.target.value}
+                                            oninput={(e) => {
+                                                this.messageText = e.target.value;
+                                                clearTimeout(this.typingTimer);
+                                                if (!this.isTyping && this.activeUser) {
+                                                    this.isTyping = true;
+                                                    app.request({
+                                                        method: 'POST',
+                                                        url: app.forum.attribute('apiUrl') + '/direct-messages/typing',
+                                                        body: { data: { attributes: { receiver_id: this.activeUser.id() } } }
+                                                    }).catch(() => {});
+                                                }
+                                                this.typingTimer = setTimeout(() => { this.isTyping = false; }, 2000);
+                                            }}
                                             onkeypress={(e) => { if(e.key === 'Enter') this.sendMessage() }}
                                         />
                                         
