@@ -57,7 +57,18 @@ export default class ChatWidget extends Component {
 
     setupPusher() {
         setTimeout(() => {
-            if (!app.pusher) return;
+            if (!app.pusher) {
+                // Pusher/WebSocket yoksa Arka Plan Yoklama (Polling) sistemini devreye sok
+                setInterval(() => {
+                    if (this.isOpen) {
+                        this.loadMessages(true);
+                    } else if (this.activeUser) {
+                        // Kapalıyken ama biri seçiliyken de bildirim veya veri çekmek isteyebiliriz
+                        // Şimdilik sadece açıksa çekiyoruz performansı yormamak için.
+                    }
+                }, 3000);
+                return;
+            }
             
             const myId = app.session.user.id();
             const channelName = 'private-user' + myId;
@@ -142,10 +153,13 @@ export default class ChatWidget extends Component {
         m.redraw();
     }
 
-    loadMessages() {
+    loadMessages(silent = false) {
         if (!app.session || !app.session.user) return;
-        this.isLoading = true;
-        m.redraw();
+        
+        if (!silent) {
+            this.isLoading = true;
+            m.redraw();
+        }
         
         app.request({
             method: 'GET',
@@ -154,9 +168,9 @@ export default class ChatWidget extends Component {
             if (response && response.data) {
                 const myId = app.session.user.id();
                 
-                // Geri dönen mesajlardan sohbet geçmişini (Sidebar) oluştur
                 const convos = new Map();
                 const rawMessages = response.data;
+                const prevMessageCount = this.messages.length;
                 
                 this.messages = [];
                 
@@ -223,10 +237,19 @@ export default class ChatWidget extends Component {
 
                 // Sohbetleri son mesaj saatine göre sırala
                 this.conversations = Array.from(convos.values()).sort((a, b) => b.lastTime - a.lastTime);
+                
+                // Eğer yeni mesaj eklendiyse ekranı en alta kaydır
+                if (this.messages.length > prevMessageCount) {
+                    this.scrollToBottom();
+                }
             }
-            this.isLoading = false;
+            
+            if (!silent) {
+                this.isLoading = false;
+                this.scrollToBottom();
+            }
+            
             m.redraw();
-            this.scrollToBottom();
         });
     }
 
